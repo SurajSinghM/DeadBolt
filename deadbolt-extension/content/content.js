@@ -404,16 +404,33 @@
   let lastClickedField = null;
   let lastClickedFormType = null;
 
+  let credentialsExistForSite = false;
+  let credentialsCheckComplete = false;
+
+  try {
+    chrome.runtime.sendMessage({ action: 'check-credentials-exist', hostname: window.location.hostname }, (res) => {
+      credentialsCheckComplete = true;
+      if (res && res.exists) {
+        credentialsExistForSite = true;
+        scheduleScan();
+      }
+    });
+  } catch (e) {
+    credentialsCheckComplete = true;
+  }
+
   function injectIcons(detectedForms) {
     detectedForms.forEach(({ formType, fields }) => {
       if (![FormType.LOGIN, FormType.REGISTER, FormType.PASSWORD_CHANGE].includes(formType)) return;
 
       fields.forEach(({ element: field, fieldType }) => {
-        if (injectedFields.has(field)) return;
         if (fieldType === FieldType.OTP) return;
 
-        injectFieldIcon(field, formType);
-        injectedFields.add(field);
+        if (credentialsCheckComplete && credentialsExistForSite) {
+          if (injectedFields.has(field)) return;
+          injectFieldIcon(field, formType);
+          injectedFields.add(field);
+        }
       });
       
       trackFieldInteractions(fields);
@@ -654,9 +671,10 @@
 
     // Start hidden, show on hover over parent or focus
     button.classList.remove('visible');
-    if (parent) {
-      parent.addEventListener('mouseenter', () => button.classList.add('visible'));
-      parent.addEventListener('mouseleave', () => {
+    const parentNode = field.parentElement;
+    if (parentNode) {
+      parentNode.addEventListener('mouseenter', () => button.classList.add('visible'));
+      parentNode.addEventListener('mouseleave', () => {
         if (document.activeElement !== field) button.classList.remove('visible');
       });
     }

@@ -1,5 +1,5 @@
 let currentStep = 0;
-const totalSteps = 8;
+const totalSteps = 9;
 
 function goToStep(step) {
   if (step < 0 || step >= totalSteps) return;
@@ -29,6 +29,7 @@ document.getElementById('btn-next-3').addEventListener('click', nextStep);
 document.getElementById('btn-next-4').addEventListener('click', nextStep);
 document.getElementById('btn-next-4-spyware').addEventListener('click', nextStep);
 document.getElementById('btn-next-5').addEventListener('click', nextStep);
+document.getElementById('btn-next-5-aliases').addEventListener('click', nextStep);
 document.getElementById('btn-close').addEventListener('click', () => window.close());
 
 // Dot navigation (only allow going to previously visited steps)
@@ -123,12 +124,13 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
     const verifyData = await encrypt('DEADBOLT_VAULT_OK', key);
     const vaultData = await encrypt([], key);
 
+    const apiKey = document.getElementById('setup-simplelogin').value.trim();
     await chrome.storage.local.set({
       deadbolt_salt: bufferToBase64(salt),
       deadbolt_vault: vaultData.ciphertext,
       deadbolt_iv: vaultData.iv,
       deadbolt_verify: JSON.stringify(verifyData),
-      deadbolt_settings: JSON.stringify({ autoLockMinutes: 5 })
+      deadbolt_settings: JSON.stringify({ autoLockMinutes: 5, simpleloginApiKey: apiKey })
     });
     
     // Save persistent session key

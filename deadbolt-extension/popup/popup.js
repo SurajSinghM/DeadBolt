@@ -175,7 +175,29 @@
     }
 
     await sessionSetKey(state.cryptoKey, state.salt);
+    await updateDomainHashes();
     notifyBackground('vault-unlocked');
+  }
+
+  async function updateDomainHashes() {
+    const encoder = new TextEncoder();
+    const hashes = [];
+    for (const entry of state.entries) {
+      if (!entry.url) continue;
+      try {
+        const urlObj = new URL(entry.url);
+        const domain = urlObj.hostname.replace(/^www\./, '');
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(domain));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        if (!hashes.includes(hashHex)) {
+          hashes.push(hashHex);
+        }
+      } catch (e) {
+        // Invalid URL, skip
+      }
+    }
+    await storageSet({ 'deadbolt_domain_hashes': hashes });
   }
 
   async function saveVault() {
@@ -185,6 +207,7 @@
       [STORAGE_KEYS.VAULT]: vaultData.ciphertext,
       [STORAGE_KEYS.IV]: vaultData.iv
     });
+    await updateDomainHashes();
   }
 
   async function saveSettings() {
@@ -900,6 +923,7 @@
       $('#btn-use-gen').style.display = 'none';
       showScreen('screen-generator');
       generateAndDisplay();
+      loadEmailAliases();
     });
 
     $('#btn-vault').addEventListener('click', () => {
@@ -933,6 +957,37 @@
       showScreen('screen-entry');
     });
 
+    $('#btn-generate-alias').addEventListener('click', () => {
+      const btn = $('#btn-generate-alias');
+      const out = $('#alias-output');
+      btn.textContent = 'Generating...';
+      btn.disabled = true;
+      
+      chrome.runtime.sendMessage({ action: 'generate-email-alias' }, (res) => {
+        btn.textContent = 'Generate New Alias';
+        btn.disabled = false;
+        
+        if (chrome.runtime.lastError) {
+          out.textContent = 'Error: ' + chrome.runtime.lastError.message;
+        } else if (res && res.error) {
+          out.textContent = 'Error: ' + res.error;
+        } else if (res && res.alias) {
+          out.textContent = res.alias;
+          loadEmailAliases();
+        } else {
+          out.textContent = 'Unknown error occurred.';
+        }
+      });
+    });
+
+    $('#btn-copy-alias').addEventListener('click', () => {
+      const alias = $('#alias-output').textContent;
+      if (alias && alias !== 'Not generated yet' && !alias.startsWith('Error')) {
+        navigator.clipboard.writeText(alias);
+        showToast('Alias copied!');
+      }
+    });
+
     // ── Breach check screen ──
     $('#btn-breach').addEventListener('click', () => {
       showScreen('screen-breach');
@@ -954,6 +1009,7 @@
       $('#setting-autolock-val').textContent = state.settings.autoLockMinutes + ' min';
       $('#setting-force-https').checked = !!state.settings.forceHttps;
       $('#setting-block-webrtc').checked = !!state.settings.blockWebRtc;
+      $('#setting-simplelogin-api').value = state.settings.simpleloginApiKey || '';
       $('#setting-current-pass').value = '';
       $('#setting-new-pass').value = '';
       $('#setting-confirm-pass').value = '';
@@ -980,6 +1036,13 @@
       state.settings.blockWebRtc = e.target.checked;
       await saveSettings();
       notifyBackground('update-privacy', state.settings);
+    });
+
+    $('#btn-save-simplelogin').addEventListener('click', async () => {
+      const key = $('#setting-simplelogin-api').value.trim();
+      state.settings.simpleloginApiKey = key;
+      await saveSettings();
+      showToast('API Key saved!');
     });
 
     $('#btn-change-pass').addEventListener('click', async () => {
@@ -1079,6 +1142,78 @@
     $('#entry-notes').value = entry.notes || '';
 
     showScreen('screen-entry');
+  }
+
+  function loadEmailAliases() {
+    const listEl = $('#active-aliases-list');
+    if (!listEl) return;
+    
+    listEl.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0;">Loading...</div>';
+    
+    chrome.runtime.sendMessage({ action: 'get-email-aliases' }, (res) => {
+      if (chrome.runtime.lastError || (res && res.error)) {
+        listEl.innerHTML = `<div style="font-size: 13px; color: var(--error-color); text-align: center; padding: 12px 0;">${res?.error || chrome.runtime.lastError?.message || 'Error'}</div>`;
+        return;
+      }
+      
+      if (res && res.aliases) {
+        if (res.aliases.length === 0) {
+          listEl.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0;">No active aliases</div>';
+          return;
+        }
+        
+        listEl.innerHTML = '';
+        res.aliases.forEach(alias => {
+          const aliasEl = document.createElement('div');
+          aliasEl.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 6px; overflow: hidden; gap: 8px;';
+          
+          const emailSpan = document.createElement('span');
+          emailSpan.style.cssText = 'font-size: 14px; color: var(--text-primary); user-select: all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;';
+          emailSpan.textContent = alias.email;
+          emailSpan.title = alias.email;
+          
+          const actionContainer = document.createElement('div');
+          actionContainer.style.cssText = 'display: flex; gap: 4px; flex-shrink: 0;';
+          
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'btn-icon';
+          copyBtn.title = 'Copy';
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(alias.email);
+            showToast('Alias copied!');
+          };
+          
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'btn-icon btn-danger-icon';
+          deleteBtn.title = 'Delete';
+          deleteBtn.style.color = 'var(--error-color)';
+          deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+          deleteBtn.onclick = async () => {
+            const ok = await confirm('Delete Alias', `Are you sure you want to delete<br/><strong style="color: var(--text-primary); word-break: break-all;">${alias.email}</strong>?`);
+            if (ok) {
+              deleteBtn.disabled = true;
+              chrome.runtime.sendMessage({ action: 'delete-email-alias', aliasId: alias.id }, (res) => {
+                if (chrome.runtime.lastError || !res || !res.success) {
+                  showToast(res?.error || chrome.runtime.lastError?.message || 'Error deleting alias', 'error');
+                  deleteBtn.disabled = false;
+                } else {
+                  showToast('Alias deleted');
+                  loadEmailAliases();
+                }
+              });
+            }
+          };
+          
+          actionContainer.appendChild(copyBtn);
+          actionContainer.appendChild(deleteBtn);
+          
+          aliasEl.appendChild(emailSpan);
+          aliasEl.appendChild(actionContainer);
+          listEl.appendChild(aliasEl);
+        });
+      }
+    });
   }
 
   function generateAndDisplay() {

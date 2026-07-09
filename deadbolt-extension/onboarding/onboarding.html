@@ -146,6 +146,32 @@
             <span class="chip">Customizable</span>
           </div>
           <button class="btn-primary" id="btn-next-5">
+            Next
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 5b: Email Aliases -->
+      <div class="step" id="step-5-aliases">
+        <div class="step-inner">
+          <div class="icon-hero accent">
+            <div class="icon-ring"></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+          <span class="step-badge">Privacy</span>
+          <h1>Mask Your Email</h1>
+          <p>DeadBolt integrates directly with <strong>SimpleLogin</strong> to generate unique, masked email aliases on the fly. Keep your real email address hidden from spam and data breaches.</p>
+          
+          <div class="input-group" style="margin-top: 16px; text-align: left;">
+            <label for="setup-simplelogin">SimpleLogin API Key (Optional)</label>
+            <input type="password" id="setup-simplelogin" placeholder="Enter API Key to enable" autocomplete="off">
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">You can also configure this later in Settings.</p>
+          </div>
+
+          <button class="btn-primary" id="btn-next-5-aliases" style="margin-top: 24px;">
             Let's set up your vault
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
@@ -216,6 +242,7 @@
     <button class="dot" data-step="5"></button>
     <button class="dot" data-step="6"></button>
     <button class="dot" data-step="7"></button>
+    <button class="dot" data-step="8"></button>
   </div>
 
   <script src="../crypto/crypto.js"></script>

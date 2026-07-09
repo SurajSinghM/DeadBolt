@@ -35,6 +35,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: true });
         break;
 
+      case 'check-credentials-exist':
+        (async () => {
+          if (!message.hostname) return sendResponse({ exists: false });
+          const encoder = new TextEncoder();
+          const domain = message.hostname.replace(/^www\./, '');
+          const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(domain));
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          chrome.storage.local.get(['deadbolt_domain_hashes'], (res) => {
+            const hashes = res.deadbolt_domain_hashes || [];
+            sendResponse({ exists: hashes.includes(hashHex) });
+          });
+        })();
+        return true;
+
       case 'request-autofill':
         // Content script icon was clicked — find matching credentials and autofill
         if (sender.tab?.id) {
@@ -67,6 +83,110 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case 'generate-password':
         sendResponse({ password: generatePassword(16, { upper: true, lower: true, digits: true, symbols: true }) });
+        return true;
+
+      case 'generate-email-alias':
+        chrome.storage.local.get(['deadbolt_settings'], async (res) => {
+          try {
+            let settings = {};
+            if (res.deadbolt_settings) settings = JSON.parse(res.deadbolt_settings);
+            
+            if (!settings.simpleloginApiKey) {
+              sendResponse({ error: 'SimpleLogin API Key not configured in Settings.' });
+              return;
+            }
+            
+            const response = await fetch('https://app.simplelogin.io/api/alias/random/new', {
+              method: 'POST',
+              headers: {
+                'Authentication': settings.simpleloginApiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ mode: 'uuid' })
+            });
+            
+            if (!response.ok) {
+              sendResponse({ error: `API Error: ${response.status} ${response.statusText}` });
+              return;
+            }
+            
+            const data = await response.json();
+            sendResponse({ alias: data.alias });
+          } catch (err) {
+            sendResponse({ error: err.message });
+          }
+        });
+        return true;
+
+      case 'get-email-aliases':
+        chrome.storage.local.get(['deadbolt_settings'], async (res) => {
+          try {
+            let settings = {};
+            if (res.deadbolt_settings) settings = JSON.parse(res.deadbolt_settings);
+            
+            if (!settings.simpleloginApiKey) {
+              sendResponse({ error: 'SimpleLogin API Key not configured in Settings.' });
+              return;
+            }
+            
+            const response = await fetch('https://app.simplelogin.io/api/v2/aliases?page_id=0', {
+              method: 'GET',
+              headers: {
+                'Authentication': settings.simpleloginApiKey,
+              }
+            });
+            
+            if (!response.ok) {
+              sendResponse({ error: `API Error: ${response.status} ${response.statusText}` });
+              return;
+            }
+            
+            const data = await response.json();
+            sendResponse({ aliases: data.aliases });
+          } catch (err) {
+            sendResponse({ error: err.message });
+          }
+        });
+        return true;
+
+      case 'delete-email-alias':
+        chrome.storage.local.get(['deadbolt_settings'], async (res) => {
+          try {
+            let settings = {};
+            if (res.deadbolt_settings) settings = JSON.parse(res.deadbolt_settings);
+            
+            if (!settings.simpleloginApiKey) {
+              sendResponse({ error: 'SimpleLogin API Key not configured in Settings.' });
+              return;
+            }
+            
+            if (!message.aliasId) {
+              sendResponse({ error: 'Alias ID is required.' });
+              return;
+            }
+            
+            const response = await fetch(`https://app.simplelogin.io/api/aliases/${message.aliasId}`, {
+              method: 'DELETE',
+              headers: {
+                'Authentication': settings.simpleloginApiKey,
+              }
+            });
+            
+            if (!response.ok) {
+              let errorMsg = `API Error: ${response.status} ${response.statusText}`;
+              try {
+                const data = await response.json();
+                if (data.error) errorMsg += ` - ${data.error}`;
+              } catch (e) {}
+              sendResponse({ error: errorMsg });
+              return;
+            }
+            
+            sendResponse({ success: true });
+          } catch (err) {
+            sendResponse({ error: err.message });
+          }
+        });
         return true;
 
       case 'save-captured-credential':
@@ -371,6 +491,26 @@ async function handleSaveCredential(credential) {
       'deadbolt_vault': newVault.ciphertext,
       'deadbolt_iv': newVault.iv
     });
+
+    const encoder = new TextEncoder();
+    let domain = '';
+    try {
+      domain = (credential.hostname || new URL(credential.url).hostname).replace(/^www\./, '');
+    } catch(e) {}
+    
+    if (domain) {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(domain));
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      chrome.storage.local.get(['deadbolt_domain_hashes'], (res) => {
+        const hashes = res.deadbolt_domain_hashes || [];
+        if (!hashes.includes(hashHex)) {
+          hashes.push(hashHex);
+          chrome.storage.local.set({ 'deadbolt_domain_hashes': hashes });
+        }
+      });
+    }
   } catch (err) {
     console.error("Failed to append credential:", err);
   }
