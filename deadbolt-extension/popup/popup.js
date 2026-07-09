@@ -24,7 +24,7 @@
     salt: null,
     editingId: null,
     generatorCallback: null,
-    settings: { autoLockMinutes: 5 }
+    settings: { autoLockMinutes: 5, forceHttps: false, blockWebRtc: false }
   };
 
   // ══════════════════════════════════
@@ -102,14 +102,14 @@
 
   async function sessionSetKey(key, salt) {
     const rawKey = await crypto.subtle.exportKey('raw', key);
-    await chrome.storage.local.set({
+    await chrome.storage.session.set({
       deadbolt_session_key: bufferToBase64(rawKey),
       deadbolt_session_salt: bufferToBase64(salt)
     });
   }
 
   function sessionClear() {
-    chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
+    chrome.storage.session.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
   }
 
   // ══════════════════════════════════
@@ -241,6 +241,10 @@
       [STORAGE_KEYS.IV]: newVault.iv,
       [STORAGE_KEYS.VERIFY]: JSON.stringify(newVerify)
     });
+
+    // Update session key so background uses the new key immediately
+    await sessionSetKey(state.cryptoKey, state.salt);
+    notifyBackground('vault-unlocked');
   }
 
   // ══════════════════════════════════
@@ -262,10 +266,16 @@
     if (options.symbols) charset += CHARSETS.symbols;
     if (!charset) charset = CHARSETS.lower;
 
-    const array = getRandomBytes(length);
+    // Rejection sampling to eliminate modulo bias
+    const maxValid = 256 - (256 % charset.length);
     let password = '';
-    for (let i = 0; i < length; i++) {
-      password += charset[array[i] % charset.length];
+    while (password.length < length) {
+      const array = getRandomBytes(length * 2);
+      for (let i = 0; i < array.length && password.length < length; i++) {
+        if (array[i] < maxValid) {
+          password += charset[array[i] % charset.length];
+        }
+      }
     }
     return password;
   }
@@ -587,7 +597,7 @@
 
     isScanning = false;
     progress.style.display = 'none';
-    scanBtn.style.display = 'flex';
+    scanBtn.style.display = '';
     scanBtn.textContent = 'Scan Again';
 
     if (breachResults.length > 0) {
@@ -658,6 +668,7 @@
       format: 'deadbolt-v1',
       exported: new Date().toISOString(),
       entries: state.entries.map(e => ({
+        id: e.id,
         title: e.title,
         url: e.url,
         username: e.username,
@@ -693,9 +704,17 @@
       );
       if (!ok) return;
 
+      const existingIds = new Set(state.entries.map(e => e.id));
+      let skipped = 0;
       for (const entry of data.entries) {
+        // Skip duplicates if the entry ID already exists in the vault
+        if (entry.id && existingIds.has(entry.id)) {
+          skipped++;
+          continue;
+        }
+        const newId = entry.id || generateId();
         state.entries.push({
-          id: generateId(),
+          id: newId,
           title: entry.title || '',
           url: entry.url || '',
           username: entry.username || '',
@@ -704,6 +723,7 @@
           created: entry.created || new Date().toISOString(),
           updated: new Date().toISOString()
         });
+        existingIds.add(newId);
       }
 
       await saveVault();
@@ -840,10 +860,11 @@
       }
 
       await saveVault();
+      const wasEditing = !!state.editingId;
       state.editingId = null;
       showScreen('screen-vault');
       renderEntries();
-      showToast(state.editingId ? 'Entry updated!' : 'Entry saved! 🔑');
+      showToast(wasEditing ? 'Entry updated!' : 'Entry saved! 🔑');
     });
 
     $('#btn-delete-entry').addEventListener('click', async () => {
@@ -931,6 +952,8 @@
     $('#btn-settings').addEventListener('click', () => {
       $('#setting-autolock').value = state.settings.autoLockMinutes;
       $('#setting-autolock-val').textContent = state.settings.autoLockMinutes + ' min';
+      $('#setting-force-https').checked = !!state.settings.forceHttps;
+      $('#setting-block-webrtc').checked = !!state.settings.blockWebRtc;
       $('#setting-current-pass').value = '';
       $('#setting-new-pass').value = '';
       $('#setting-confirm-pass').value = '';
@@ -945,6 +968,18 @@
       state.settings.autoLockMinutes = val;
       await saveSettings();
       notifyBackground('update-autolock', { minutes: val });
+    });
+
+    $('#setting-force-https').addEventListener('change', async (e) => {
+      state.settings.forceHttps = e.target.checked;
+      await saveSettings();
+      notifyBackground('update-privacy', state.settings);
+    });
+
+    $('#setting-block-webrtc').addEventListener('change', async (e) => {
+      state.settings.blockWebRtc = e.target.checked;
+      await saveSettings();
+      notifyBackground('update-privacy', state.settings);
     });
 
     $('#btn-change-pass').addEventListener('click', async () => {
@@ -1073,8 +1108,8 @@
       return;
     }
 
-    // Check if local storage has the persistent key
-    const sessData = await chrome.storage.local.get(['deadbolt_session_key', 'deadbolt_session_salt']);
+    // Check if session storage has the persistent key
+    const sessData = await chrome.storage.session.get(['deadbolt_session_key', 'deadbolt_session_salt']);
     if (sessData.deadbolt_session_key && sessData.deadbolt_session_salt) {
       try {
         const keyBuffer = base64ToBuffer(sessData.deadbolt_session_key);

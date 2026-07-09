@@ -9,7 +9,10 @@
     "tabs",
     "scripting",
     "alarms",
-    "webNavigation"
+    "webNavigation",
+    "privacy",
+    "declarativeNetRequest",
+    "notifications"
   ],
   "host_permissions": [
     "<all_urls>",
@@ -28,6 +31,13 @@
     "service_worker": "background/background.js"
   },
   "content_scripts": [
+    {
+      "all_frames": true,
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content/blocker.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "all_frames": true,
       "matches": ["https://*/*", "http://*/*"],

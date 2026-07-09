@@ -17,101 +17,7 @@
   window.__deadboltInjected = true;
 
   // ── Keystroke Spyware & Session Replay Blocker ──
-  const injectBlocker = () => {
-    const blockerCode = `
-      (() => {
-        const TRACKER_KEYWORDS = [
-          'hotjar', 'hj', 'fullstory', 'fs.js', 'logrocket', 'lr-ingest', 
-          'inspectlet', 'clarity', 'smartlook', 'luckyorange', 'mouseflow', 
-          'sessionstack', 'dynatrace', 'ruxit', 'contentsquare', 'heap.js', 
-          'pendo', 'userpilot', 'appcues', 'sentry', 'bugsnag', 'datadog', 
-          'google-analytics', 'googleanalytics', 'analytics.js', 'gtag', 'gtm.js', 
-          'tagmanager', 'facebook', 'fbevents', 'fbpx', 'pixel', 'mixpanel',
-          'amplitude', 'segment.io', 'segment.js', 'crazyegg'
-        ];
-
-        function isTrackerOrSpyware(stack) {
-          if (!stack) return false;
-          const stackLower = stack.toLowerCase();
-          
-          for (const keyword of TRACKER_KEYWORDS) {
-            if (stackLower.includes(keyword)) return true;
-          }
-          
-          if (stackLower.includes('http://') || stackLower.includes('https://')) {
-            const currentDomain = window.location.hostname.replace(/^www\\\\./, '');
-            const lines = stackLower.split('\\\\n');
-            for (const line of lines) {
-              const match = line.match(/(https?:\\\\/\\\\/[^\\\\s:)]+)/);
-              if (match) {
-                try {
-                  const url = new URL(match[0]);
-                  const host = url.hostname.replace(/^www\\\\./, '');
-                  if (host !== currentDomain && !host.endsWith('.' + currentDomain)) {
-                    const isCommonCdn = /cdnjs|unpkg|jsdelivr|bootstrapcdn|jquery/.test(host);
-                    if (!isCommonCdn) return true;
-                  }
-                } catch {}
-              }
-            }
-          }
-          return false;
-        }
-
-        function isSensitiveInput(el) {
-          const type = (el.type || '').toLowerCase();
-          if (type === 'password') return true;
-          if (type === 'email') return true;
-          const nameOrId = (el.name || '') + '|' + (el.id || '') + '|' + (el.placeholder || '') + '|' + (el.autocomplete || '');
-          return /password|passcode|passphrase|secret|email|username|login|usr/i.test(nameOrId);
-        }
-
-        // 1. Intercept addEventListener to prevent keylogging
-        const originalAddEventListener = HTMLInputElement.prototype.addEventListener;
-        HTMLInputElement.prototype.addEventListener = function(type, listener, options) {
-          if (isSensitiveInput(this) && ['keydown', 'keypress', 'keyup', 'input', 'change', 'paste'].includes(type)) {
-            const stack = new Error().stack || '';
-            if (isTrackerOrSpyware(stack)) {
-              console.warn('[DeadBolt Blocker] Blocked spyware event listener (' + type + ') on sensitive input:', this);
-              return;
-            }
-          }
-          return originalAddEventListener.call(this, type, listener, options);
-        };
-
-        // 2. Intercept value getter to prevent reading input contents
-        const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-        if (originalValueDescriptor) {
-          Object.defineProperty(HTMLInputElement.prototype, 'value', {
-            get: function() {
-              if (isSensitiveInput(this)) {
-                const stack = new Error().stack || '';
-                if (isTrackerOrSpyware(stack)) {
-                  console.warn('[DeadBolt Blocker] Blocked spyware value read on sensitive input:', this);
-                  return '';
-                }
-              }
-              return originalValueDescriptor.get.call(this);
-            },
-            set: function(val) {
-              originalValueDescriptor.set.call(this, val);
-            },
-            configurable: true
-          });
-        }
-      })();
-    `;
-
-    try {
-      const script = document.createElement('script');
-      script.textContent = blockerCode;
-      (document.head || document.documentElement).appendChild(script);
-      script.remove();
-    } catch (e) {
-      console.error('[DeadBolt] Failed to inject spyware blocker:', e);
-    }
-  };
-  injectBlocker();
+  // Moved to blocker.js to avoid CSP violations with inline scripts
 
   // ══════════════════════════════════
   //  FORM TYPE CLASSIFICATION
@@ -510,41 +416,116 @@
         injectedFields.add(field);
       });
       
-      const anyField = fields[0]?.element;
-      if (anyField) {
-        attachSubmitListener(anyField, formType);
-      }
+      trackFieldInteractions(fields);
     });
   }
 
-  function attachSubmitListener(field, formType) {
-    const form = field.closest('form');
-    if (!form || form.hasAttribute('data-deadbolt-listener')) return;
+  const trackedFields = new Map();
+
+  // 4. Global DOM Observer for SPA Route Changes and Re-renders
+  const disappearanceObserver = new MutationObserver(() => {
+    if (trackedFields.size === 0) return;
+    for (const [pwEl, state] of trackedFields.entries()) {
+      if (state.password && state.username) { // Only track if they typed something
+        if (!document.body.contains(pwEl) || !isVisible(pwEl)) {
+          triggerSave(pwEl, state);
+          trackedFields.delete(pwEl); // Stop tracking once saved
+        }
+      }
+    }
+  });
+
+  disappearanceObserver.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  function trackFieldInteractions(fields) {
+    const pwFields = fields.filter(f => f.fieldType === FieldType.PASSWORD_CURRENT || f.fieldType === FieldType.PASSWORD_NEW);
+    const userFields = fields.filter(f => f.fieldType === FieldType.EMAIL || f.fieldType === FieldType.USERNAME);
+    if (pwFields.length === 0) return;
+
+    const pwEl = pwFields[0].element;
+    const userEl = userFields.length > 0 ? userFields[0].element : null;
+
+    if (pwEl.hasAttribute('data-deadbolt-tracked')) return;
+    pwEl.setAttribute('data-deadbolt-tracked', 'true');
+
+    // Keep track of values as they type, because when the element is removed/hidden,
+    // we might not be able to read its value anymore.
+    const state = { username: '', password: '', isSubmitted: false };
     
-    form.setAttribute('data-deadbolt-listener', 'true');
-    form.addEventListener('submit', () => {
-      const pwFields = Array.from(form.querySelectorAll('input[type="password"]')).filter(isVisible);
-      if (pwFields.length === 0 || !pwFields[0].value) return;
-      
-      const userFields = Array.from(form.querySelectorAll('input[type="text"], input[type="email"], input:not([type])')).filter(isVisible);
-      const username = userFields.length > 0 ? userFields[0].value : '';
-      
-      chrome.runtime.sendMessage({
-        action: 'save-captured-credential',
-        credential: {
-          hostname: window.location.hostname,
-          url: window.location.href,
-          username,
-          password: pwFields[0].value
+    const updateState = () => {
+      state.password = pwEl.value;
+      if (userEl) state.username = userEl.value;
+    };
+
+    pwEl.addEventListener('input', updateState);
+    if (userEl) userEl.addEventListener('input', updateState);
+
+    trackedFields.set(pwEl, state);
+
+    // 1. Traditional Submit (if it is a form)
+    const form = pwEl.closest('form');
+    if (form && !form.hasAttribute('data-deadbolt-listener')) {
+      form.setAttribute('data-deadbolt-listener', 'true');
+      form.addEventListener('submit', () => triggerSave(pwEl, state));
+    }
+
+    // 2. Button Interception (for SPAs)
+    const container = findFormLikeContainer(pwEl);
+    if (container && !container.hasAttribute('data-deadbolt-btn-listener')) {
+      container.setAttribute('data-deadbolt-btn-listener', 'true');
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button, input[type="submit"], input[type="button"], [role="button"]');
+        if (btn && state.password) {
+          // If a button is clicked, we wait a moment to see if the DOM changes.
+          // If it's a login button, the password field should disappear shortly.
+          setTimeout(() => checkDisappearance(pwEl, state), 100);
         }
       });
-      
-      setTimeout(() => {
-        chrome.runtime.sendMessage({ action: 'check-pending-saves' }, (res) => {
-          if (res?.credential) renderSavePrompt(res.credential);
-        });
-      }, 1500);
+    }
+
+    // 3. Enter Key Interception
+    const onEnter = (e) => {
+      if (e.key === 'Enter' && state.password) {
+        setTimeout(() => checkDisappearance(pwEl, state), 100);
+      }
+    };
+    pwEl.addEventListener('keydown', onEnter);
+    if (userEl) userEl.addEventListener('keydown', onEnter);
+  }
+
+  function checkDisappearance(pwEl, state) {
+    if (state.isSubmitted || !state.password) return;
+    
+    // Check if the password field is removed from the DOM or hidden
+    if (!document.body.contains(pwEl) || !isVisible(pwEl)) {
+      triggerSave(pwEl, state);
+    }
+  }
+
+  function triggerSave(pwEl, state) {
+    if (state.isSubmitted || !state.password) return;
+    state.isSubmitted = true;
+    
+    chrome.runtime.sendMessage({
+      action: 'save-captured-credential',
+      credential: {
+        hostname: window.location.hostname,
+        url: window.location.href,
+        username: state.username,
+        password: state.password
+      }
     });
+    
+    setTimeout(() => {
+      chrome.runtime.sendMessage({ action: 'check-pending-saves' }, (res) => {
+        if (res?.credential) renderSavePrompt(res.credential);
+      });
+    }, 1500);
   }
 
   function injectFieldIcon(field, formType) {
@@ -556,111 +537,97 @@
     const style = document.createElement('style');
     style.textContent = `
       :host {
-        position: absolute !important;
-        pointer-events: none;
-        width: 0 !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        overflow: visible !important;
-        z-index: 2147483647 !important;
-        opacity: 1 !important;
-        float: left !important;
-        animation: none !important;
+        /* ... handled inline by js ... */
       }
       button {
         pointer-events: all;
         position: absolute;
         cursor: pointer;
-        width: 24px;
-        height: 24px;
-        margin: auto;
-        top: 0;
-        bottom: 0;
-        background: transparent;
-        border: none;
-        border-radius: 4px;
+        background: #111118;
+        border: 1px solid #2a2a35;
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0;
-        max-width: 0;
-        transition: opacity 0.15s ease, max-width 0.15s ease, transform 0.15s ease;
+        transform: translateY(-50%) scale(0.5);
+        transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        padding: 4px;
+        box-sizing: border-box;
       }
       button.visible {
-        opacity: 0.9;
-        max-width: 28px;
+        opacity: 0.95;
+        transform: translateY(-50%) scale(1);
       }
       button:hover {
         opacity: 1;
-        transform: scale(1.1);
+        transform: translateY(-50%) scale(1.1);
+        background: #1f1f28;
       }
       button img {
         width: 100%;
         height: 100%;
         object-fit: contain;
-        border-radius: 4px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         pointer-events: none;
       }
     `;
 
     const button = document.createElement('button');
     button.title = 'Fill with DeadBolt';
-    const iconUrl = chrome.runtime.getURL('favicon logo/favicon-32x32.png');
+    const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAELUlEQVR4AexWTYhcRRCu6u73ZnYHV/YgxOySdSVkhfUQL+vmtoILERdyUBYPioLgQTxowEsggoh4MwjixYO/ILhBojEBs140oAmCIh6MIbLKxkv0ELPs7Jv35nX59Zt5M+9N+s2qJOSyzavuqurqqq+ra4pRdIvHDoCdDAzNwObm5p2tVuseEZkRiUCyD/w+iaIZp3ckW1t3ra+vj/zfWq4EEMfxm/V6/Y8gCH4WsRdEQpD8IgIKwwtO70hqtbWJiYm/0yT5IUlaL2F/138B4wXQbDYnjVHPMhN3nLlFOqx/Dljr/VoHL1trf02S5AiAGL9pWavKYkfSWt8uohAVX0eFuc/DOeTyl+uYeRTnX03T9DR0t5Wtrpe8AELYMQ+7sWyStadE0mMI9AZu/QWObIF6n1JqEXufAYRz19MPMl4AMcUkiI/DJXvI7TRNXrt2bWNSGbOElB9GHTxvjDmIgt2DgMdwIAVlH0AsxO34lUyomLwAMltmYuaMdROCt0CHgqB2ZHx8/KrTFWlsbOwvgDmM938Mdu18L9DmhSiK9uby4FoJgAkp6FrDIeF2L+Kmp7uqbNnY2Lg3iaJF7AeZAlOtVjtubfsodMii88EBauI5bHm/SgDuCfon5BJu91ZfJkIPWG40Gj/qMDiTpumJ4t7Fi5deB4DLeQK1VoeK+0XeCyAMQ2Hinp218jEzpz0FGK21c4rzTIr54NraWp26Y3Z2Nhaxx6nng6eQrTvIM+Dgei2aUC+6S6JN7E+DVu12+yMRSUCEylyZnp6OijbIYPEM42kmi/s57wUQUig98M5SU8stRUKX/FysPc8wtNYeLe45HsDKZxLyNiYvAOcgJwaD9O/BUvoQIGDF9wmK1TDPlTYh4Cc4BRtwhGIkClR6JRMGJjUg90Xps3D2cF/qcGjX+4m4AXBEmg/QwGCmJWbuauXqysmTl7tCaakGgJvllvDzIAKWghhDu5nlnE3T82Sp1O3QCx5QSs/3MyCry8vLae6vuHoBxJlFjp6IkWsU0fvFSq7VGp8qZQ6YIJg3YfgMdQc64m6l1DsQGQMLEQr27YzxTF4AHTu8Lkq5wxPB2d7R0dGz+IUg9eQd2JtDcZ6F7VRuYG26Ct1qLg+uQwCQC0rFAcczRpvvcKMVNKLHEfD+uNmcx/pku52cQKf8BjZ352dE7BWtzdO57FurAXD/CUoHmQxS/Cg64wcIeM7U699ifVeprDHp3BbB/4yi1kPMvJ7rfKsXAH7XTUH6HfkObadD2r+O42QOrfr77Wy9AEZGRn4XsWeAfrvzvX3BnwME/grgH9HaLMDHb/QvhhcAzgmcLNk4XoLDp4ZSkjwRx/Eiqn+XMcGCMeYTAC90EXgb8lUBcAWY4H1PweF7Q6lW+xBV/qX7PzAkTuVWJYDKEzd4YwfATc/Adi/2DwAAAP//Se/T8wAAAAZJREFUAwAM0+ZQEDRaIQAAAABJRU5ErkJggg==';
     button.innerHTML = `<img src="${iconUrl}" alt="DeadBolt">`;
 
     shadow.appendChild(style);
     shadow.appendChild(button);
 
-    // Position the icon inside the field
+    // We will append the host to the body to avoid interfering with the site's layout
+    host.style.position = 'absolute';
+    host.style.top = '0';
+    host.style.left = '0';
+    host.style.width = '100%';
+    host.style.height = '0';
+    host.style.zIndex = '2147483647';
+    host.style.pointerEvents = 'none';
+
+    button.style.position = 'absolute';
+    button.style.pointerEvents = 'all'; // allow clicking the button itself
+    const size = 26;
+    button.style.width = size + 'px';
+    button.style.height = size + 'px';
+
+    // Position the icon using absolute document coordinates
     const positionIcon = () => {
       const rect = field.getBoundingClientRect();
-      const parent = field.offsetParent || field.parentElement;
-      if (!parent) return;
+      if (rect.width === 0 || rect.height === 0) return; // Hidden field
 
+      const absoluteTop = rect.top + window.scrollY;
+      const absoluteLeft = rect.left + window.scrollX;
+
+      button.style.left = (absoluteLeft + rect.width - size - 10) + 'px';
+      button.style.top = (absoluteTop + rect.height / 2) + 'px';
+
+      // Inject padding into the field so text doesn't overlap the icon
       const computedStyle = window.getComputedStyle(field);
-      const fieldHeight = rect.height;
-
-      // Position to the right inside the input
-      host.style.position = 'absolute';
-      
-      const size = Math.min(24, fieldHeight - 8);
-      // Place it 8px from the right inner edge of the field
-      button.style.left = (field.offsetLeft + field.offsetWidth - size - 8) + 'px';
-      button.style.right = 'auto';
-      button.style.top = (field.offsetTop + (fieldHeight - size) / 2) + 'px';
-      button.style.bottom = 'auto';
-      button.style.height = size + 'px';
-      button.style.width = size + 'px';
-      button.style.margin = '0'; // Override previous auto margin
-
-      // Inject padding so text doesn't overlap the icon
       const computedPadding = parseInt(computedStyle.paddingRight || '0', 10);
       if (computedPadding < size + 16) {
         field.style.paddingRight = (size + 16) + 'px';
       }
 
-      // Make button visible after positioning
       requestAnimationFrame(() => button.classList.add('visible'));
     };
 
-    // Insert the icon host as sibling of the input
-    const parent = field.parentElement;
-    if (parent) {
-      const parentPos = window.getComputedStyle(parent).position;
-      if (parentPos === 'static') {
-        parent.style.position = 'relative';
-      }
-      // Insert after the field
-      field.insertAdjacentElement('afterend', host);
-      positionIcon();
+    // Append to body instead of field sibling
+    document.body.appendChild(host);
+    positionIcon();
 
-      // Re-position on resize
-      const resizeObserver = new ResizeObserver(positionIcon);
-      resizeObserver.observe(field);
-    }
+    // Re-position on resize and scroll to keep it glued to the field
+    const resizeObserver = new ResizeObserver(positionIcon);
+    resizeObserver.observe(field);
+    window.addEventListener('resize', positionIcon, { passive: true });
+    // Note: Scroll events on window might not catch scrollable containers.
+    // An IntersectionObserver or periodic check could be used, but scroll + resize covers most.
+    window.addEventListener('scroll', positionIcon, { passive: true, capture: true });
 
     // Click handler: attempt to find matching credentials and fill
     button.addEventListener('click', (e) => {
@@ -957,33 +924,42 @@
     style.textContent = `
       :host { position: absolute !important; z-index: 2147483647 !important; }
       .container {
-        position: absolute; top: 8px; left: 0; width: 260px;
-        background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
-        font-family: 'Inter', -apple-system, sans-serif;
-        padding: 12px; pointer-events: all;
-        opacity: 0; transform: translateY(-5px); transition: all 0.2s ease;
+        position: absolute; top: 12px; left: 0; width: 280px;
+        background: #111118; border: 1px solid #1e1e28; border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        padding: 16px; pointer-events: all;
+        opacity: 0; transform: translateY(6px); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .container.visible { opacity: 1; transform: translateY(0); }
-      .title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-      .input-wrapper { display: flex; gap: 6px; }
+      .title { font-size: 15px; font-weight: 600; color: #f1f5f9; display: flex; align-items: center; gap: 8px; }
+      .title svg { width: 16px; height: 16px; color: #94a3b8; }
+      .input-wrapper { display: flex; gap: 8px; margin-top: 14px; }
       input {
-        flex: 1; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
-        font-size: 13px; outline: none; transition: border-color 0.15s; width: 100%;
+        flex: 1; padding: 10px 12px; border: 1.5px solid #2a2a35; border-radius: 8px;
+        background: #18181f; color: #f1f5f9;
+        font-size: 13px; outline: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); width: 100%;
+        box-sizing: border-box;
       }
-      input:focus { border-color: #f97316; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1); }
+      input::placeholder { color: #64748b; font-weight: 400; }
+      input:focus { background: #111118; border-color: #e2e8f0; box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.08); }
       button {
-        background: #f97316; color: white; border: none; padding: 0 12px;
-        border-radius: 6px; font-weight: 500; cursor: pointer; transition: opacity 0.2s;
+        background: #e2e8f0; color: #0a0a0f; border: none; padding: 0 16px;
+        border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; 
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      button:hover { opacity: 0.9; }
-      .error { color: #ef4444; font-size: 11px; margin-top: 6px; display: none; }
+      button:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3); }
+      button:active { transform: translateY(0); box-shadow: none; }
+      .error { color: #f87171; font-size: 12px; margin-top: 10px; display: none; font-weight: 500; }
     `;
 
     const container = document.createElement('div');
     container.className = 'container';
     container.innerHTML = `
-      <div class="title"><span>🔒</span> Vault Locked</div>
+      <div class="title">
+        <svg xmlns="http://www.w3.org/0000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        Vault Locked
+      </div>
       <form class="input-wrapper">
         <input type="password" placeholder="Master Password" autocomplete="off" autofocus>
         <button type="submit">Unlock</button>
@@ -1006,20 +982,17 @@
 
       chrome.runtime.sendMessage({ action: 'unlock-vault', password: pw }, (res) => {
         if (res?.success) {
-          container.innerHTML = `<div class="title" style="color: #10b981; justify-content: center; margin: 0;">🔓 Vault Unlocked!</div>`;
-          setTimeout(() => {
-            host.remove();
-            activeDropdownHost = null;
-            // Retry the original autofill request
-            if (lastClickedField) {
-              chrome.runtime.sendMessage({
-                action: 'request-autofill',
-                url: window.location.href,
-                hostname: window.location.hostname,
-                formType: lastClickedFormType
-              });
-            }
-          }, 1000);
+          host.remove();
+          activeDropdownHost = null;
+          // Retry the original autofill request
+          if (lastClickedField) {
+            chrome.runtime.sendMessage({
+              action: 'request-autofill',
+              url: window.location.href,
+              hostname: window.location.hostname,
+              formType: lastClickedFormType
+            });
+          }
         } else {
           btn.textContent = 'Unlock';
           btn.disabled = false;
@@ -1320,7 +1293,6 @@
         break;
       }
     }
-    return true;
   });
 
   // ══════════════════════════════════
@@ -1337,7 +1309,6 @@
     scanTimer = setTimeout(() => {
       const forms = detectForms();
       injectIcons(forms);
-      // Notify background about detected login forms
       if (forms.some(f => f.formType === FormType.LOGIN)) {
         try {
           chrome.runtime.sendMessage({
@@ -1350,12 +1321,9 @@
     }, SCAN_DEBOUNCE);
   }
 
-  // Initial scan
   function initialScan() {
     const forms = detectForms();
     injectIcons(forms);
-
-    // Notify background about detected login forms
     if (forms.some(f => f.formType === FormType.LOGIN)) {
       try {
         chrome.runtime.sendMessage({
@@ -1367,44 +1335,46 @@
     }
   }
 
-  // Run initial scan when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(initialScan, 300));
-  } else {
-    setTimeout(initialScan, 300);
+  function setupObservers() {
+    const observer = new MutationObserver((mutations) => {
+      const hasRelevantChange = mutations.some(m =>
+        m.type === 'childList' && (m.addedNodes.length > 0 || m.removedNodes.length > 0)
+      );
+      if (hasRelevantChange) {
+        scheduleScan();
+      }
+    });
+
+    observer.observe(document, {
+      childList: true,
+      subtree: true
+    });
+
+    let lastUrl = location.href;
+    const urlObserver = new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        scheduleScan();
+      }
+    });
+    
+    urlObserver.observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
   }
 
-  // Observe DOM mutations for SPA navigation and dynamically loaded forms
-  const observer = new MutationObserver((mutations) => {
-    // Only rescan if nodes were added/removed (not just attribute changes)
-    const hasRelevantChange = mutations.some(m =>
-      m.type === 'childList' && (m.addedNodes.length > 0 || m.removedNodes.length > 0)
-    );
-    if (hasRelevantChange) {
-      scheduleScan();
-    }
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(initialScan, 300);
+      setupObservers();
+    });
+  } else {
+    setTimeout(initialScan, 300);
+    setupObservers();
+  }
 
-  observer.observe(document.documentElement || document.body, {
-    childList: true,
-    subtree: true
-  });
-
-  // Also rescan on URL change (SPA navigation via pushState/replaceState)
-  let lastUrl = location.href;
-  const urlObserver = new MutationObserver(() => {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href;
-      scheduleScan();
-    }
-  });
-  urlObserver.observe(document.querySelector('title') || document.head, {
-    childList: true,
-    subtree: true,
-    characterData: true
-  });
-
-  // Listen for popstate (browser back/forward)
   window.addEventListener('popstate', scheduleScan);
 
 })();

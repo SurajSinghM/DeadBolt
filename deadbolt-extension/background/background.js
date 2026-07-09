@@ -13,100 +13,119 @@ const pendingSaves = new Map(); // tabId -> { hostname, url }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   initStatePromise.then(() => {
     switch (message.action) {
-    case 'vault-unlocked':
-      isUnlocked = true;
-      updateBadge(true);
-      break;
 
-    case 'vault-locked':
-      isUnlocked = false;
-      updateBadge(false);
-      detectedLoginTabs.clear();
-      chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
-      break;
 
-    case 'get-status':
-      sendResponse({ unlocked: isUnlocked });
-      return true;
-
-    case 'login-form-detected':
-      // Content script detected a login form on the page
-      if (sender.tab?.id) {
-        detectedLoginTabs.set(sender.tab.id, {
-          hostname: message.hostname,
-          url: message.url
-        });
-        // Update badge to show there's a login form on this tab
-        if (isUnlocked) {
-          updateTabBadge(sender.tab.id, true);
-          checkPhishing(sender.tab, message.hostname);
-        }
-      }
-      break;
-
-    case 'request-autofill':
-      // Content script icon was clicked — find matching credentials and autofill
-      if (sender.tab?.id && isUnlocked) {
-        handleAutoFillRequest(sender.tab, message);
-      }
-      break;
-
-    case 'check-login-tab':
-      // Popup asks if current tab has a detected login form
-      if (message.tabId && detectedLoginTabs.has(message.tabId)) {
-        sendResponse({
-          hasLogin: true,
-          ...detectedLoginTabs.get(message.tabId)
-        });
-      } else {
-        sendResponse({ hasLogin: false });
-      }
-      return true;
-
-    case 'get-credential':
-      // Content script requests a specific credential by ID (after user selection)
-      if (isUnlocked && message.id) {
-        handleGetCredential(message.id, sendResponse);
-        return true; // async response
-      } else {
-        sendResponse(null);
-      }
-      break;
-
-    case 'generate-password':
-      sendResponse({ password: generatePassword(16, { upper: true, lower: true, digits: true, symbols: true }) });
-      return true;
-
-    case 'save-captured-credential':
-      if (sender.tab?.id) {
-        pendingSaves.set(sender.tab.id, message.credential);
-      }
-      sendResponse({ ok: true });
-      break;
-
-    case 'check-pending-saves':
-      if (sender.tab?.id && pendingSaves.has(sender.tab.id)) {
-        const cred = pendingSaves.get(sender.tab.id);
-        pendingSaves.delete(sender.tab.id);
-        sendResponse({ credential: cred });
-      } else {
-        sendResponse({ credential: null });
-      }
-      return true;
-
-    case 'confirm-save-credential':
-      if (isUnlocked && message.credential) {
-        handleSaveCredential(message.credential).then(() => sendResponse({ success: true }));
+      case 'get-status':
+        sendResponse({ unlocked: isUnlocked });
         return true;
-      }
-      sendResponse({ success: false });
-      break;
 
-    case 'unlock-vault':
-      handleUnlockVault(message.password).then((success) => {
-        sendResponse({ success });
-      });
-      return true;
+      case 'login-form-detected':
+        // Content script detected a login form on the page
+        if (sender.tab?.id) {
+          detectedLoginTabs.set(sender.tab.id, {
+            hostname: message.hostname,
+            url: message.url
+          });
+          // Update badge to show there's a login form on this tab
+          if (isUnlocked) {
+            updateTabBadge(sender.tab.id, true);
+            checkPhishing(sender.tab, message.hostname);
+          }
+        }
+        sendResponse({ ok: true });
+        break;
+
+      case 'request-autofill':
+        // Content script icon was clicked — find matching credentials and autofill
+        if (sender.tab?.id) {
+          handleAutoFillRequest(sender.tab, message);
+        }
+        sendResponse({ ok: true });
+        break;
+
+      case 'check-login-tab':
+        // Popup asks if current tab has a detected login form
+        if (message.tabId && detectedLoginTabs.has(message.tabId)) {
+          sendResponse({
+            hasLogin: true,
+            ...detectedLoginTabs.get(message.tabId)
+          });
+        } else {
+          sendResponse({ hasLogin: false });
+        }
+        return true;
+
+      case 'get-credential':
+        // Content script requests a specific credential by ID (after user selection)
+        if (isUnlocked && message.id) {
+          handleGetCredential(message.id, sendResponse);
+          return true; // async response
+        } else {
+          sendResponse(null);
+        }
+        break;
+
+      case 'generate-password':
+        sendResponse({ password: generatePassword(16, { upper: true, lower: true, digits: true, symbols: true }) });
+        return true;
+
+      case 'save-captured-credential':
+        if (sender.tab?.id) {
+          pendingSaves.set(sender.tab.id, message.credential);
+        }
+        sendResponse({ ok: true });
+        break;
+
+      case 'check-pending-saves':
+        if (sender.tab?.id && pendingSaves.has(sender.tab.id)) {
+          const cred = pendingSaves.get(sender.tab.id);
+          pendingSaves.delete(sender.tab.id);
+          sendResponse({ credential: cred });
+        } else {
+          sendResponse({ credential: null });
+        }
+        return true;
+
+      case 'confirm-save-credential':
+        if (isUnlocked && message.credential) {
+          handleSaveCredential(message.credential).then(() => sendResponse({ success: true }));
+          return true;
+        }
+        sendResponse({ success: false });
+        break;
+
+      case 'unlock-vault':
+        handleUnlockVault(message.password).then((success) => {
+          sendResponse({ success });
+        });
+        return true;
+
+      case 'vault-unlocked':
+        isUnlocked = true;
+        updateBadge(true);
+        resetAutoLock();
+        sendResponse({ success: true });
+        break;
+
+      case 'vault-locked':
+        lockVault();
+        sendResponse({ success: true });
+        break;
+
+      case 'update-autolock':
+        if (message.minutes) {
+          autoLockMinutes = message.minutes;
+          if (isUnlocked) resetAutoLock();
+        }
+        sendResponse({ success: true });
+        break;
+
+      case 'update-privacy':
+        updateWebRtcPolicy(message.blockWebRtc);
+        updateHttpsEnforcer(message.forceHttps);
+        forceHttpsEnabled = !!message.forceHttps;
+        sendResponse({ success: true });
+        break;
     }
   });
   return true; // Always return true because we handle EVERYTHING asynchronously after initStatePromise
@@ -156,7 +175,9 @@ async function handleAutoFillRequest(tab, message) {
       return;
     }
 
-    const sessionData = await chrome.storage.local.get(['deadbolt_session_key']);
+    resetAutoLock(); // Reset auto-lock timer on activity
+
+    const sessionData = await chrome.storage.session.get(['deadbolt_session_key']);
     if (!sessionData.deadbolt_session_key) return;
 
     const keyBuffer = base64ToBuffer(sessionData.deadbolt_session_key);
@@ -168,11 +189,11 @@ async function handleAutoFillRequest(tab, message) {
     if (!localData.deadbolt_vault || !localData.deadbolt_iv) return;
 
     const entries = await bgDecrypt(localData.deadbolt_vault, localData.deadbolt_iv, key);
-    
+
     // Find matching entry for this domain
     const url = new URL(tab.url);
     const domain = url.hostname.replace(/^www\./, '');
-    
+
     const matchingEntries = entries.filter(e => {
       if (!e.url) return false;
       try {
@@ -213,7 +234,8 @@ async function handleAutoFillRequest(tab, message) {
 
 async function handleGetCredential(id, sendResponse) {
   try {
-    const sessionData = await chrome.storage.local.get(['deadbolt_session_key']);
+    resetAutoLock(); // Reset auto-lock timer on activity
+    const sessionData = await chrome.storage.session.get(['deadbolt_session_key']);
     if (!sessionData.deadbolt_session_key) return sendResponse(null);
 
     const keyBuffer = base64ToBuffer(sessionData.deadbolt_session_key);
@@ -226,7 +248,7 @@ async function handleGetCredential(id, sendResponse) {
 
     const entries = await bgDecrypt(localData.deadbolt_vault, localData.deadbolt_iv, key);
     const entry = entries.find(e => e.id === id);
-    
+
     if (entry) {
       sendResponse({ username: entry.username || '', password: entry.password || '' });
     } else {
@@ -259,26 +281,31 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 // ── Password Generator ──
 const CHARSETS = {
-  upper:   'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-  lower:   'abcdefghijklmnopqrstuvwxyz',
-  digits:  '0123456789',
+  upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  lower: 'abcdefghijklmnopqrstuvwxyz',
+  digits: '0123456789',
   symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
 };
 
 function generatePassword(length, options) {
   let charset = '';
-  if (options.upper)   charset += CHARSETS.upper;
-  if (options.lower)   charset += CHARSETS.lower;
-  if (options.digits)  charset += CHARSETS.digits;
+  if (options.upper) charset += CHARSETS.upper;
+  if (options.lower) charset += CHARSETS.lower;
+  if (options.digits) charset += CHARSETS.digits;
   if (options.symbols) charset += CHARSETS.symbols;
   if (!charset) charset = CHARSETS.lower;
 
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  
+  // Rejection sampling to eliminate modulo bias
+  const maxValid = 256 - (256 % charset.length);
   let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset[array[i] % charset.length];
+  while (password.length < length) {
+    const array = new Uint8Array(length * 2);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < array.length && password.length < length; i++) {
+      if (array[i] < maxValid) {
+        password += charset[array[i] % charset.length];
+      }
+    }
   }
   return password;
 }
@@ -310,7 +337,8 @@ async function bgEncrypt(data, key) {
 
 async function handleSaveCredential(credential) {
   try {
-    const sessionData = await chrome.storage.local.get(['deadbolt_session_key']);
+    resetAutoLock(); // Reset auto-lock timer on activity
+    const sessionData = await chrome.storage.session.get(['deadbolt_session_key']);
     if (!sessionData.deadbolt_session_key) return;
 
     const keyBuffer = base64ToBuffer(sessionData.deadbolt_session_key);
@@ -324,7 +352,7 @@ async function handleSaveCredential(credential) {
     if (localData.deadbolt_vault && localData.deadbolt_iv) {
       entries = await bgDecrypt(localData.deadbolt_vault, localData.deadbolt_iv, key);
     }
-    
+
     const newEntry = {
       id: crypto.randomUUID(),
       title: credential.hostname || new URL(credential.url).hostname,
@@ -335,9 +363,9 @@ async function handleSaveCredential(credential) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
+
     entries.push(newEntry);
-    
+
     const newVault = await bgEncrypt(entries, key);
     await chrome.storage.local.set({
       'deadbolt_vault': newVault.ciphertext,
@@ -373,27 +401,28 @@ async function handleUnlockVault(masterPassword) {
 
     const verifyData = JSON.parse(data.deadbolt_verify);
     const decoder = new TextDecoder();
-    
+
     // Attempt decryption of verify phrase
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: base64ToBuffer(verifyData.iv) },
       key,
       base64ToBuffer(verifyData.ciphertext)
     );
-    
-    const phrase = decoder.decode(decrypted);
+
+    const phrase = JSON.parse(decoder.decode(decrypted));
     if (phrase !== 'DEADBOLT_VAULT_OK') return false;
 
     // Successful unlock!
     const rawKey = await crypto.subtle.exportKey('raw', key);
-    await chrome.storage.local.set({
+    await chrome.storage.session.set({
       deadbolt_session_key: bufferToBase64(rawKey),
       deadbolt_session_salt: bufferToBase64(salt)
     });
-    
+
     isUnlocked = true;
     updateBadge(true);
-    
+    resetAutoLock();
+
     return true;
   } catch (err) {
     console.error("Unlock failed:", err);
@@ -401,16 +430,96 @@ async function handleUnlockVault(masterPassword) {
   }
 }
 
+let forceHttpsEnabled = false;
+
+// ── Privacy Enhancements ──
+function updateWebRtcPolicy(block) {
+  if (chrome.privacy && chrome.privacy.network && chrome.privacy.network.webRTCIPHandlingPolicy) {
+    const policy = block ? 'disable_non_proxied_udp' : 'default';
+    chrome.privacy.network.webRTCIPHandlingPolicy.set({ value: policy });
+  }
+}
+
+async function updateHttpsEnforcer(enforce) {
+  if (!chrome.declarativeNetRequest) return;
+  const ruleId = 1;
+  if (enforce) {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      addRules: [{
+        "id": ruleId,
+        "priority": 1,
+        "action": { "type": "upgradeScheme" },
+        "condition": {
+          "urlFilter": "http://*",
+          "resourceTypes": ["main_frame", "sub_frame"]
+        }
+      }],
+      removeRuleIds: [ruleId]
+    });
+  } else {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [ruleId]
+    });
+  }
+}
+
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.frameId === 0 && forceHttpsEnabled && details.url.startsWith('http://')) {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: '/favicon logo/android-chrome-192x192.png',
+      title: 'DeadBolt Security',
+      message: 'HTTPS connection enforced',
+      priority: 1
+    });
+  }
+});
+
+// ── Auto-Lock Logic ──
+let autoLockMinutes = 5;
+
+function resetAutoLock() {
+  chrome.alarms.create('autolock', { delayInMinutes: autoLockMinutes });
+}
+
+function lockVault() {
+  chrome.storage.session.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
+  isUnlocked = false;
+  updateBadge(false);
+  chrome.alarms.clear('autolock');
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'autolock') {
+    lockVault();
+  }
+});
+
 // ── Initial state ──
 let initStatePromise = new Promise((resolve) => {
-  chrome.storage.local.get(['deadbolt_session_key'], (res) => {
-    if (res.deadbolt_session_key) {
-      isUnlocked = true;
-      updateBadge(true);
-    } else {
-      updateBadge(false);
-    }
-    resolve();
+  chrome.storage.local.get(['deadbolt_settings'], (localRes) => {
+    chrome.storage.session.get(['deadbolt_session_key'], (sessionRes) => {
+      if (sessionRes.deadbolt_session_key) {
+        isUnlocked = true;
+        updateBadge(true);
+        resetAutoLock();
+      } else {
+        updateBadge(false);
+      }
+
+      // Initialize settings
+      if (localRes.deadbolt_settings) {
+        try {
+          const settings = JSON.parse(localRes.deadbolt_settings);
+          if (settings.autoLockMinutes) autoLockMinutes = settings.autoLockMinutes;
+          updateWebRtcPolicy(settings.blockWebRtc);
+          updateHttpsEnforcer(settings.forceHttps);
+          forceHttpsEnabled = !!settings.forceHttps;
+        } catch { }
+      }
+      
+      resolve();
+    });
   });
 });
 
@@ -424,8 +533,8 @@ chrome.runtime.onInstalled.addListener((details) => {
 function levenshteinDistance(a, b) {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
-  
-  const matrix = Array.from({ length: a.length + 1 }, () => 
+
+  const matrix = Array.from({ length: a.length + 1 }, () =>
     new Array(b.length + 1).fill(0)
   );
 
@@ -459,7 +568,7 @@ async function checkPhishing(tab, currentHostname) {
     if (!localData.deadbolt_vault || !localData.deadbolt_iv) return;
 
     const entries = await bgDecrypt(localData.deadbolt_vault, localData.deadbolt_iv, key);
-    
+
     let isExactMatch = false;
     let closestMatch = null;
     let minDistance = Infinity;
@@ -468,13 +577,13 @@ async function checkPhishing(tab, currentHostname) {
 
     for (const entry of entries) {
       if (!entry.url) continue;
-      
+
       let savedHost = '';
       try {
         const u = new URL(entry.url.startsWith('http') ? entry.url : 'https://' + entry.url);
         savedHost = u.hostname.replace(/^www\./, '').toLowerCase();
       } catch { continue; }
-      
+
       if (!savedHost) continue;
 
       if (cleanHost === savedHost || cleanHost.endsWith('.' + savedHost)) {
@@ -493,10 +602,10 @@ async function checkPhishing(tab, currentHostname) {
     }
 
     if (!isExactMatch && closestMatch) {
-      chrome.tabs.sendMessage(tab.id, { 
-        action: 'phishing-alert', 
-        suspiciousDomain: cleanHost, 
-        safeDomain: closestMatch 
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'phishing-alert',
+        suspiciousDomain: cleanHost,
+        safeDomain: closestMatch
       });
     }
   } catch (err) {

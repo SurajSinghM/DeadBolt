@@ -189,11 +189,21 @@
       </header>
       <div class="scroll-content padded-content pb-xl">
         <div class="settings-section">
-          <h3>Security</h3>
-          <div class="gen-control">
+          <h3>Security & Privacy</h3>
+          <div class="gen-control" style="margin-bottom: 24px;">
             <label for="setting-autolock">Auto-lock after: <strong id="setting-autolock-val">5 min</strong></label>
             <input type="range" id="setting-autolock" min="1" max="30" value="5" class="range-slider">
           </div>
+          <label class="toggle-row">
+            <span>Enforce HTTPS</span>
+            <input type="checkbox" id="setting-force-https">
+            <div class="toggle-switch"></div>
+          </label>
+          <label class="toggle-row">
+            <span>Block WebRTC IP Leaks</span>
+            <input type="checkbox" id="setting-block-webrtc">
+            <div class="toggle-switch"></div>
+          </label>
         </div>
 
         <div class="settings-section">
