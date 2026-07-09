@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "DeadBolt — Password Manager",
+  "version": "1.0.0",
+  "description": "A premium, secure password manager for Chrome. Store, generate, and auto-fill credentials with military-grade AES-256-GCM encryption.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "alarms",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "favicon logo/favicon-16x16.png",
+      "32": "favicon logo/favicon-32x32.png",
+      "48": "favicon logo/android-chrome-192x192.png",
+      "128": "favicon logo/android-chrome-192x192.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "content_scripts": [
+    {
+      "all_frames": true,
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "favicon logo/favicon-16x16.png",
+    "32": "favicon logo/favicon-32x32.png",
+    "48": "favicon logo/android-chrome-192x192.png",
+    "128": "favicon logo/android-chrome-192x192.png"
+  }
+}

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeadBolt Extension Test Page</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface-2: #1a2332;
+      --border: #2a3444;
+      --text: #e2e8f0;
+      --text-2: #94a3b8;
+      --accent: #58a6ff;
+      --accent-2: #a371f7;
+      --green: #3fb950;
+      --amber: #d29922;
+      --red: #f85149;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      text-align: center;
+      padding: 48px 24px 32px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(88,166,255,0.06) 0%, transparent 100%);
+    }
+    .page-header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #58a6ff, #a371f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .page-header p {
+      color: var(--text-2);
+      font-size: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 12px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-2);
+      flex-wrap: wrap;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,0.4); }
+
+    /* ── Layout ── */
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 24px;
+      padding: 32px 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* ── Test Card ── */
+    .test-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .test-card:hover {
+      border-color: rgba(88,166,255,0.3);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-login { background: rgba(88,166,255,0.15); color: var(--accent); }
+    .badge-register { background: rgba(163,113,247,0.15); color: var(--accent-2); }
+    .badge-recovery { background: rgba(210,153,34,0.15); color: var(--amber); }
+    .badge-change { background: rgba(248,81,73,0.15); color: var(--red); }
+    .badge-otp { background: rgba(63,185,80,0.15); color: var(--green); }
+    .badge-spa { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+    .card-body {
+      padding: 24px 20px;
+    }
+    .card-description {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* ── Form Styles ── */
+    .test-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.3px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+    }
+    .form-group input::placeholder {
+      color: #475569;
+    }
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+    .form-row .form-group { flex: 1; }
+
+    .form-link {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+    .form-link:hover { text-decoration: underline; }
+
+    .form-submit {
+      padding: 11px 20px;
+      background: linear-gradient(135deg, #58a6ff 0%, #a371f7 100%);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+    .form-submit:hover { opacity: 0.9; }
+    .form-submit:active { transform: scale(0.98); }
+
+    .form-submit.secondary {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .form-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+    .form-divider::before, .form-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .otp-inputs {
+      display: flex;
+      gap: 8px;
+    }
+    .otp-inputs input {
+      width: 44px !important;
+      height: 48px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0;
+      padding: 0;
+    }
+
+    .form-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+    .form-checkbox input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    /* ── Log Panel ── */
+    .log-panel {
+      max-width: 1280px;
+      margin: 0 auto 40px;
+      padding: 0 24px;
+    }
+    .log-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .log-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .log-body {
+      padding: 16px 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.8;
+    }
+    .log-entry { display: flex; gap: 8px; }
+    .log-time { color: #475569; flex-shrink: 0; }
+    .log-msg { color: var(--green); }
+    .log-msg.warn { color: var(--amber); }
+    .log-msg.error { color: var(--red); }
+
+    .btn-clear-log {
+      font-size: 12px;
+      color: var(--text-2);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-clear-log:hover { color: var(--text); border-color: #475569; }
+
+    /* ── SPA Tab Nav ── */
+    .spa-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .spa-tab {
+      flex: 1;
+      padding: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .spa-tab.active {
+      background: rgba(88,166,255,0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .spa-view { display: none; }
+    .spa-view.active { display: block; }
+
+    /* ── Hidden form (for username-hidden test) ── */
+    .hidden-username {
+      position: absolute;
+      opacity: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
+    /* ── Footer ── */
+    .page-footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: #475569;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .test-grid { grid-template-columns: 1fr; padding: 16px; }
+      .page-header { padding: 32px 16px 24px; }
+      .page-header h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="page-header">
+    <h1>🔐 DeadBolt Extension Test Page</h1>
+    <p>This page contains various login, registration, and password forms to test DeadBolt's form detection, field classification, icon injection, and auto-fill capabilities.</p>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot" id="dot-extension"></span>
+      Extension Loaded
+    </div>
+    <div class="status-item">
+      <span class="status-dot" id="dot-forms"></span>
+      Forms Detected
+    </div>
+    <div class="status-item">
+      <span class="status-dot" id="dot-icons"></span>
+      Icons Injected
+    </div>
+    <div class="status-item">
+      <span class="status-dot" id="dot-fill"></span>
+      Auto-fill Tested
+    </div>
+  </div>
+
+  <!-- Test Cards Grid -->
+  <div class="test-grid">
+
+    <!-- ═══ TEST 1: Simple Login ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🔑 Simple Login</h2>
+        <span class="card-badge badge-login">LOGIN</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Standard email + password login form. DeadBolt should classify this as <strong>LOGIN</strong>, detect both fields, and inject icons.</p>
+        <form class="test-form" id="form-simple-login" action="#" onsubmit="return logSubmit(event, 'Simple Login')">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" name="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" name="password" placeholder="Enter your password" autocomplete="current-password">
+          </div>
+          <label class="form-checkbox">
+            <input type="checkbox" name="remember"> Remember me
+          </label>
+          <button type="submit" class="form-submit">Sign In</button>
+          <a class="form-link" href="#forgot">Forgot your password?</a>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 2: Username Login ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>👤 Username Login</h2>
+        <span class="card-badge badge-login">LOGIN</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Uses <code>username</code> instead of email. Tests the username regex detection pattern.</p>
+        <form class="test-form" id="form-username-login" action="#" onsubmit="return logSubmit(event, 'Username Login')">
+          <div class="form-group">
+            <label for="login-user">Username</label>
+            <input type="text" id="login-user" name="username" placeholder="Enter your username" autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="login-user-pass">Password</label>
+            <input type="password" id="login-user-pass" name="password" placeholder="Enter your password" autocomplete="current-password">
+          </div>
+          <button type="submit" class="form-submit">Log In</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 3: Registration ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>📝 Registration</h2>
+        <span class="card-badge badge-register">REGISTER</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Sign-up form with <code>new-password</code> + confirm fields. Should be classified as <strong>REGISTER</strong>, not LOGIN.</p>
+        <form class="test-form" id="form-register" action="#" onsubmit="return logSubmit(event, 'Registration')">
+          <div class="form-group">
+            <label for="reg-email">Email</label>
+            <input type="email" id="reg-email" name="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Create Password</label>
+            <input type="password" id="reg-password" name="password" placeholder="Create a password" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="reg-confirm">Confirm Password</label>
+            <input type="password" id="reg-confirm" name="confirm_password" placeholder="Re-type your password" autocomplete="new-password">
+          </div>
+          <button type="submit" class="form-submit">Create Account</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 4: Password Change ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🔄 Password Change</h2>
+        <span class="card-badge badge-change">PW CHANGE</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Current + new + confirm password fields. Should be classified as <strong>PASSWORD_CHANGE</strong>.</p>
+        <form class="test-form" id="form-pw-change" action="#" onsubmit="return logSubmit(event, 'Password Change')">
+          <div class="form-group">
+            <label for="change-current">Current Password</label>
+            <input type="password" id="change-current" name="current_password" placeholder="Current password" autocomplete="current-password">
+          </div>
+          <div class="form-group">
+            <label for="change-new">New Password</label>
+            <input type="password" id="change-new" name="new_password" placeholder="New password" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="change-confirm">Confirm New Password</label>
+            <input type="password" id="change-confirm" name="confirm_password" placeholder="Confirm new password" autocomplete="new-password">
+          </div>
+          <button type="submit" class="form-submit">Change Password</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 5: Forgot Password ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>❓ Forgot Password</h2>
+        <span class="card-badge badge-recovery">RECOVERY</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Email-only recovery form. Should be classified as <strong>RECOVERY</strong> due to "forgot" context.</p>
+        <form class="test-form" id="form-forgot" action="#" onsubmit="return logSubmit(event, 'Forgot Password')">
+          <p style="font-size: 13px; color: var(--text-2); margin-bottom: 8px;">Forgot your password? Enter your email and we'll send a reset link.</p>
+          <div class="form-group">
+            <label for="forgot-email">Email Address</label>
+            <input type="email" id="forgot-email" name="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <button type="submit" class="form-submit">Send Reset Link</button>
+          <a class="form-link" href="#login">Back to login</a>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 6: 2FA / OTP ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🔢 Two-Factor Auth</h2>
+        <span class="card-badge badge-otp">OTP</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">OTP code input for 2FA. Should detect fields as <strong>OTP</strong> type and classify form as NOOP (not a login).</p>
+        <form class="test-form" id="form-otp" action="#" onsubmit="return logSubmit(event, '2FA OTP')">
+          <p style="font-size: 13px; color: var(--text-2); margin-bottom: 8px;">Enter the 6-digit code from your authenticator app.</p>
+          <div class="form-group">
+            <label>Verification Code</label>
+            <div class="otp-inputs">
+              <input type="text" maxlength="1" name="otp1" autocomplete="one-time-code" aria-label="OTP digit 1">
+              <input type="text" maxlength="1" name="otp2" autocomplete="one-time-code" aria-label="OTP digit 2">
+              <input type="text" maxlength="1" name="otp3" autocomplete="one-time-code" aria-label="OTP digit 3">
+              <input type="text" maxlength="1" name="otp4" autocomplete="one-time-code" aria-label="OTP digit 4">
+              <input type="text" maxlength="1" name="otp5" autocomplete="one-time-code" aria-label="OTP digit 5">
+              <input type="text" maxlength="1" name="otp6" autocomplete="one-time-code" aria-label="OTP digit 6">
+            </div>
+          </div>
+          <button type="submit" class="form-submit">Verify</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 7: No-Form Login (orphan inputs) ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🧩 No &lt;form&gt; Tag</h2>
+        <span class="card-badge badge-login">LOGIN</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Login fields <strong>without</strong> a wrapping <code>&lt;form&gt;</code> element. Tests orphan field grouping logic.</p>
+        <div class="test-form" id="orphan-login">
+          <div class="form-group">
+            <label for="orphan-email">Email</label>
+            <input type="email" id="orphan-email" name="email" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label for="orphan-pass">Password</label>
+            <input type="password" id="orphan-pass" name="password" placeholder="Your password">
+          </div>
+          <button type="button" class="form-submit" onclick="logAction('No-Form Login: button clicked')">Sign In</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 8: React-style Login (no autocomplete) ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>⚛️ Framework-style</h2>
+        <span class="card-badge badge-login">LOGIN</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Inputs with no <code>autocomplete</code>, no <code>name</code>, only <code>data-testid</code> — like a React/Vue SPA. Tests heuristic detection.</p>
+        <form class="test-form" id="form-react" action="#" onsubmit="return logSubmit(event, 'Framework Login')">
+          <div class="form-group">
+            <label for="react-user">Username or Email</label>
+            <input type="text" id="react-user" data-testid="login-username-input" placeholder="Username or email">
+          </div>
+          <div class="form-group">
+            <label for="react-pass">Password</label>
+            <input type="password" id="react-pass" data-testid="login-password-input" placeholder="Password">
+          </div>
+          <button type="submit" class="form-submit">Login</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 9: Hidden Username ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>👻 Hidden Username</h2>
+        <span class="card-badge badge-login">LOGIN</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Login with a hidden username field (pre-filled, like password managers do for browser autofill). Only the password field is visible.</p>
+        <form class="test-form" id="form-hidden-user" action="#" onsubmit="return logSubmit(event, 'Hidden Username Login')">
+          <div class="hidden-username">
+            <input type="email" name="email" value="user@example.com" autocomplete="username" tabindex="-1">
+          </div>
+          <p style="font-size: 13px; color: var(--text-2); margin-bottom: 4px;">Welcome back, <strong style="color: var(--text);">user@example.com</strong></p>
+          <div class="form-group">
+            <label for="hidden-pass">Password</label>
+            <input type="password" id="hidden-pass" name="password" placeholder="Enter your password" autocomplete="current-password">
+          </div>
+          <button type="submit" class="form-submit">Continue</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 10: SPA Multi-Step ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>📱 SPA Multi-Step</h2>
+        <span class="card-badge badge-spa">DYNAMIC</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Dynamically switches between steps (like Google/Microsoft login). Tests MutationObserver re-scanning.</p>
+        <div class="spa-tabs">
+          <button class="spa-tab active" onclick="showSpaStep(1)">Step 1: Email</button>
+          <button class="spa-tab" onclick="showSpaStep(2)">Step 2: Password</button>
+        </div>
+        <div id="spa-step-1" class="spa-view active">
+          <form class="test-form" onsubmit="event.preventDefault(); showSpaStep(2); logAction('SPA: moved to step 2')">
+            <div class="form-group">
+              <label for="spa-email">Email or Phone</label>
+              <input type="email" id="spa-email" name="identifier" placeholder="Enter your email" autocomplete="username">
+            </div>
+            <button type="submit" class="form-submit">Next</button>
+          </form>
+        </div>
+        <div id="spa-step-2" class="spa-view">
+          <form class="test-form" onsubmit="return logSubmit(event, 'SPA Multi-Step Login')">
+            <p style="font-size: 13px; color: var(--text-2); margin-bottom: 8px;">Hello, <strong style="color: var(--text);">user@example.com</strong></p>
+            <div class="form-group">
+              <label for="spa-password">Password</label>
+              <input type="password" id="spa-password" name="password" placeholder="Enter password" autocomplete="current-password">
+            </div>
+            <button type="submit" class="form-submit">Sign In</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 11: iframe Login ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🪟 iframe Login</h2>
+        <span class="card-badge badge-login">IFRAME</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Login form inside an <code>&lt;iframe&gt;</code>. Tests <code>all_frames: true</code> content script injection.</p>
+        <iframe id="login-iframe" style="width:100%; height:180px; border:1px solid var(--border); border-radius:8px; background: var(--surface-2);" srcdoc='
+          <html><head><style>
+            * { box-sizing: border-box; margin: 0; }
+            body { font-family: Inter, sans-serif; padding: 16px; background: #1a2332; color: #e2e8f0; }
+            label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 4px; }
+            input { width: 100%; padding: 8px 12px; background: #111827; border: 1px solid #2a3444; border-radius: 6px; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; outline: none; font-family: inherit; }
+            input:focus { border-color: #58a6ff; }
+            button { width: 100%; padding: 8px; background: linear-gradient(135deg, #58a6ff, #a371f7); border: none; border-radius: 6px; color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+          </style></head><body>
+            <form onsubmit="event.preventDefault()">
+              <label>Email</label>
+              <input type="email" name="email" placeholder="Email" autocomplete="email">
+              <label>Password</label>
+              <input type="password" name="password" placeholder="Password" autocomplete="current-password">
+              <button type="submit">Login in iframe</button>
+            </form>
+          </body></html>
+        '></iframe>
+      </div>
+    </div>
+
+    <!-- ═══ TEST 12: Decoy / Non-Login ═══ -->
+    <div class="test-card">
+      <div class="card-header">
+        <h2>🚫 Non-Login Forms</h2>
+        <span class="card-badge" style="background:rgba(255,255,255,0.05);color:var(--text-2);">NOOP</span>
+      </div>
+      <div class="card-body">
+        <p class="card-description">Search, newsletter, and credit card forms. DeadBolt should <strong>NOT</strong> inject icons or classify these as login forms.</p>
+
+        <form class="test-form" style="margin-bottom: 16px;" onsubmit="return logSubmit(event, 'Search (should be NOOP)')">
+          <div class="form-group">
+            <label>🔍 Search</label>
+            <input type="search" name="search" placeholder="Search products...">
+          </div>
+        </form>
+
+        <form class="test-form" style="margin-bottom: 16px;" onsubmit="return logSubmit(event, 'Newsletter (should be NOOP)')">
+          <div class="form-group">
+            <label>📧 Newsletter Subscription</label>
+            <input type="email" name="newsletter_email" placeholder="Subscribe to our mailing list" data-testid="newsletter-email">
+          </div>
+          <button type="submit" class="form-submit secondary">Subscribe to Newsletter</button>
+        </form>
+
+        <form class="test-form" onsubmit="return logSubmit(event, 'Credit Card (should be NOOP)')">
+          <div class="form-group">
+            <label>💳 Card Number</label>
+            <input type="text" name="cardnumber" placeholder="1234 5678 9012 3456" autocomplete="cc-number">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Expiry</label>
+              <input type="text" name="cc-exp" placeholder="MM/YY" autocomplete="cc-exp">
+            </div>
+            <div class="form-group">
+              <label>CVC</label>
+              <input type="text" name="cc-csc" placeholder="123" autocomplete="cc-csc">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Log Panel -->
+  <div class="log-panel">
+    <div class="log-card">
+      <div class="log-header">
+        <h2>📋 Event Log</h2>
+        <button class="btn-clear-log" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="log-body" id="log-body">
+        <div class="log-entry">
+          <span class="log-time">[--:--:--]</span>
+          <span class="log-msg">Waiting for events...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    DeadBolt Extension Test Page — Open DevTools Console for detailed detection logs
+  </footer>
+
+  <script>
+    // ── Event Logging ──
+    function logAction(msg, type = 'info') {
+      const log = document.getElementById('log-body');
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const cls = type === 'warn' ? 'warn' : type === 'error' ? 'error' : '';
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg ${cls}">${msg}</span>`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function logSubmit(event, formName) {
+      event.preventDefault();
+      const form = event.target;
+      const data = new FormData(form);
+      const entries = {};
+      for (const [key, value] of data.entries()) {
+        entries[key] = key.includes('password') ? '•'.repeat(value.length || 4) : value;
+      }
+      logAction(`✅ ${formName} submitted: ${JSON.stringify(entries)}`);
+      return false;
+    }
+
+    function clearLog() {
+      document.getElementById('log-body').innerHTML = '';
+      logAction('Log cleared');
+    }
+
+    // ── SPA Step Toggle ──
+    function showSpaStep(step) {
+      document.querySelectorAll('.spa-tab').forEach((t, i) => t.classList.toggle('active', i === step - 1));
+      document.querySelectorAll('.spa-view').forEach((v, i) => v.classList.toggle('active', i === step - 1));
+    }
+
+    // ── Status Detection ──
+    function checkStatus() {
+      // Check if extension is injected
+      const hasIcons = document.querySelectorAll('deadbolt-icon').length > 0;
+      const hasForms = document.querySelectorAll('form input[type="password"]').length > 0;
+
+      document.getElementById('dot-extension').classList.toggle('active', typeof chrome !== 'undefined' && !!chrome.runtime);
+      document.getElementById('dot-forms').classList.toggle('active', hasForms);
+      document.getElementById('dot-icons').classList.toggle('active', hasIcons);
+
+      if (hasIcons) logAction('🔵 DeadBolt icons detected on page');
+    }
+
+    // Monitor for DeadBolt icon injection
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.tagName === 'DEADBOLT-ICON') {
+            logAction('🛡️ DeadBolt icon injected near: ' + (node.previousElementSibling?.name || node.previousElementSibling?.id || 'input'));
+            document.getElementById('dot-icons').classList.add('active');
+          }
+        }
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+
+    // Monitor for auto-fill events
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', () => {
+        if (input.value && !input._logged) {
+          logAction(`📝 Field "${input.name || input.id || 'unnamed'}" value changed (possible auto-fill)`);
+          document.getElementById('dot-fill').classList.add('active');
+          input._logged = true;
+          setTimeout(() => { input._logged = false; }, 2000);
+        }
+      });
+    });
+
+    // Initial check
+    setTimeout(checkStatus, 1000);
+    setTimeout(checkStatus, 3000);
+    logAction('🚀 Test page loaded');
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to DeadBolt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon logo/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../favicon logo/favicon-16x16.png">
+  <link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+  <div class="container">
+    <div class="carousel" id="carousel">
+      
+      <!-- STEP 1: Welcome -->
+      <div class="step active" id="step-1">
+        <img src="../FullSizeLogo.png" alt="DeadBolt Logo" style="height: 80px; margin: 0 auto 16px;">
+        <h1 style="display:none;">Welcome to DeadBolt</h1>
+        <p>The hyper-secure, blazing fast, local-first password manager built directly into your browser.</p>
+        <button class="btn-primary" id="btn-next-1">Get Started</button>
+      </div>
+
+      <!-- STEP 2: Persistent Autofill -->
+      <div class="step" id="step-2">
+        <div class="icon-hero">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+          </svg>
+        </div>
+        <h1>Seamless Autofill</h1>
+        <p>DeadBolt uses an advanced Persistent Session. Log in once, and DeadBolt stays unlocked in the background, allowing you to autofill forms instantly without entering your master password every time.</p>
+        <button class="btn-primary" id="btn-next-2">Next</button>
+      </div>
+
+      <!-- STEP 3: Anti-Phishing -->
+      <div class="step" id="step-3">
+        <div class="icon-hero danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h1>Strict Anti-Phishing</h1>
+        <p>DeadBolt actively scans the domains you visit. If it detects a typo-squatted site (like paypa<strong>I</strong>.com instead of paypal.com), it instantly blocks the page with a massive red warning.</p>
+        <button class="btn-primary" id="btn-next-3">Next</button>
+      </div>
+
+      <!-- STEP 4: Setup Master Password -->
+      <div class="step" id="step-4">
+        <h1>Create your Master Password</h1>
+        <p>This is the only password you'll ever need to remember. Make it strong, and don't forget it—there is no password reset.</p>
+        <form id="form-setup">
+          <div class="input-group">
+            <input type="password" id="setup-password" placeholder="Master Password" required>
+            <div class="strength-bar"><div class="strength-fill" id="setup-strength"></div></div>
+            <span class="strength-label" id="setup-strength-label"></span>
+          </div>
+          <div class="input-group">
+            <input type="password" id="setup-confirm" placeholder="Confirm Password" required>
+          </div>
+          <p class="error-msg" id="setup-error"></p>
+          <button type="submit" class="btn-primary" id="btn-create-vault">Create Vault</button>
+        </form>
+      </div>
+
+      <!-- STEP 5: Success -->
+      <div class="step" id="step-5">
+        <div class="icon-hero success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h1>You're all set!</h1>
+        <p>Your vault has been encrypted and saved securely on your device.</p>
+        <div class="pin-instruction">
+          <p><strong>Pro Tip:</strong> Click the Puzzle icon (<svg style="display:inline; width:16px; height:16px; vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19.5 12c-2.485 0-4.5-2.015-4.5-4.5S17.015 3 19.5 3 24 5.015 24 7.5 21.985 12 19.5 12zM12 19.5c0 2.485-2.015 4.5-4.5 4.5S3 21.985 3 19.5 5.015 15 7.5 15s4.5 2.015 4.5 4.5zM12 7.5c0-2.485 2.015-4.5 4.5-4.5S21 5.015 21 7.5 18.985 12 16.5 12s-4.5-2.015-4.5-4.5zM7.5 12c2.485 0 4.5 2.015 4.5 4.5S9.985 21 7.5 21 3 18.985 3 16.5 5.015 12 7.5 12z"/></svg>) in Chrome and <strong>Pin DeadBolt</strong> for easy access.</p>
+        </div>
+        <button class="btn-primary" id="btn-close">Close Setup</button>
+      </div>
+
+    </div>
+  </div>
+  <script src="../crypto/crypto.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>
