@@ -9,6 +9,9 @@ let isUnlocked = false;
 const detectedLoginTabs = new Map();
 const pendingSaves = new Map(); // tabId -> { hostname, url }
 
+// Purge any leaked session keys from persistent storage (Security Fix)
+chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
+
 // ── Listen for messages from popup & content scripts ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   initStatePromise.then(() => {
@@ -696,7 +699,7 @@ function levenshteinDistance(a, b) {
 
 async function checkPhishing(tab, currentHostname) {
   try {
-    const sessionData = await chrome.storage.local.get(['deadbolt_session_key']);
+    const sessionData = await chrome.storage.session.get(['deadbolt_session_key']);
     if (!sessionData.deadbolt_session_key) return;
 
     const keyBuffer = base64ToBuffer(sessionData.deadbolt_session_key);

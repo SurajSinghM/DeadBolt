@@ -532,7 +532,7 @@
       action: 'save-captured-credential',
       credential: {
         hostname: window.location.hostname,
-        url: window.location.href,
+        url: window.location.origin,
         username: state.username,
         password: state.password
       }
@@ -657,7 +657,7 @@
       // Send message to background to check for matching credentials
       chrome.runtime.sendMessage({
         action: 'request-autofill',
-        url: window.location.href,
+        url: window.location.origin,
         hostname: window.location.hostname,
         formType: formType
       });
@@ -938,6 +938,13 @@
     const host = document.createElement('deadbolt-unlock-prompt');
     const shadow = host.attachShadow({ mode: 'closed' });
 
+    // Security: Aggressively stop propagation of typing events to prevent page from keylogging the master password
+    ['keydown', 'keypress', 'keyup', 'input', 'beforeinput', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(evt => {
+      host.addEventListener(evt, (e) => {
+        e.stopPropagation();
+      }, true);
+    });
+
     const style = document.createElement('style');
     style.textContent = `
       :host { position: absolute !important; z-index: 2147483647 !important; }
@@ -1006,7 +1013,7 @@
           if (lastClickedField) {
             chrome.runtime.sendMessage({
               action: 'request-autofill',
-              url: window.location.href,
+              url: window.location.origin,
               hostname: window.location.hostname,
               formType: lastClickedFormType
             });
@@ -1290,7 +1297,7 @@
           hasPassword: f.fields.some(ff => ff.fieldType === FieldType.PASSWORD_CURRENT || ff.fieldType === FieldType.PASSWORD_NEW),
           hasUsername: f.fields.some(ff => ff.fieldType === FieldType.EMAIL || ff.fieldType === FieldType.USERNAME)
         }));
-        sendResponse({ forms: formInfo, url: window.location.href, hostname: window.location.hostname });
+        sendResponse({ forms: formInfo, url: window.location.origin, hostname: window.location.hostname });
         break;
       }
 
@@ -1332,7 +1339,7 @@
           chrome.runtime.sendMessage({
             action: 'login-form-detected',
             hostname: window.location.hostname,
-            url: window.location.href
+            url: window.location.origin
           });
         } catch { /* Extension context invalidated */ }
       }
@@ -1347,7 +1354,7 @@
         chrome.runtime.sendMessage({
           action: 'login-form-detected',
           hostname: window.location.hostname,
-          url: window.location.href
+          url: window.location.origin
         });
       } catch { /* Extension context invalidated */ }
     }

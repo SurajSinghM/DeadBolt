@@ -466,24 +466,24 @@
     list.innerHTML = filtered.map((entry, i) => {
       const favicon = getFaviconUrl(entry.url);
       const faviconContent = favicon
-        ? `<img src="${favicon}" alt="" onerror="this.parentNode.textContent='${getInitial(entry.title)}'" style="width: 20px; height: 20px; border-radius: 4px;">`
-        : getInitial(entry.title);
+        ? `<img src="${escapeHtml(favicon)}" alt="" style="width: 20px; height: 20px; border-radius: 4px;">`
+        : escapeHtml(getInitial(entry.title));
 
       return `
-        <div class="entry-card" data-id="${entry.id}" style="animation-delay: ${i * 30}ms">
+        <div class="entry-card" data-id="${escapeHtml(entry.id)}" style="animation-delay: ${i * 30}ms">
           <div class="entry-icon">${faviconContent}</div>
           <div class="entry-info">
             <div class="entry-title">${escapeHtml(entry.title || 'Untitled')}</div>
             <div class="entry-user">${escapeHtml(entry.username || '—')}</div>
           </div>
           <div class="entry-actions">
-            <button class="btn-action" data-action="copy-user" data-id="${entry.id}" title="Copy username">
+            <button class="btn-action" data-action="copy-user" data-id="${escapeHtml(entry.id)}" title="Copy username">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </button>
-            <button class="btn-action" data-action="copy-pass" data-id="${entry.id}" title="Copy password">
+            <button class="btn-action" data-action="copy-pass" data-id="${escapeHtml(entry.id)}" title="Copy password">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </button>
-            <button class="btn-action" data-action="autofill" data-id="${entry.id}" title="Auto-fill">
+            <button class="btn-action" data-action="autofill" data-id="${escapeHtml(entry.id)}" title="Auto-fill">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
             </button>
           </div>
@@ -492,9 +492,12 @@
   }
 
   function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
   }
 
   // ══════════════════════════════════
@@ -648,8 +651,8 @@
       const favicon = getFaviconUrl(result.url);
       const initial = getInitial(result.title);
       const iconContent = favicon
-        ? `<img src="${favicon}" alt="" onerror="this.parentNode.textContent='${initial}'">`
-        : initial;
+        ? `<img src="${escapeHtml(favicon)}" alt="">`
+        : escapeHtml(initial);
 
       const countLabel = result.breachCount >= 1000000
         ? `${(result.breachCount / 1000000).toFixed(1)}M`
@@ -658,7 +661,7 @@
           : result.breachCount.toString();
 
       return `
-        <div class="breach-result-card" data-breach-id="${result.entryId}" style="animation-delay: ${i * 40}ms">
+        <div class="breach-result-card" data-breach-id="${escapeHtml(result.entryId)}" style="animation-delay: ${i * 40}ms">
           <div class="breach-result-icon">${iconContent}</div>
           <div class="breach-result-info">
             <div class="breach-result-title">${escapeHtml(result.title)}</div>
@@ -735,7 +738,8 @@
           skipped++;
           continue;
         }
-        const newId = entry.id || generateId();
+        const isValidId = entry.id && /^[A-Za-z0-9_-]+$/.test(entry.id);
+        const newId = isValidId ? entry.id : generateId();
         state.entries.push({
           id: newId,
           title: entry.title || '',
@@ -762,6 +766,15 @@
   // ══════════════════════════════════
 
   function initEventListeners() {
+
+    // Handle broken favicons securely without inline onerror handlers
+    $('#entries-list').addEventListener('error', (e) => {
+      if (e.target.tagName.toLowerCase() === 'img') {
+        const card = e.target.closest('.entry-card');
+        const title = card ? card.querySelector('.entry-title').textContent : '?';
+        e.target.parentNode.textContent = getInitial(title);
+      }
+    }, true); // useCapture to catch non-bubbling error events
 
     // ── Toggle password visibility ──
     $$('.btn-eye').forEach(btn => {

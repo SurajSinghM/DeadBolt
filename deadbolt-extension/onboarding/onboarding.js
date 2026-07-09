@@ -135,7 +135,7 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
     
     // Save persistent session key
     const rawKey = await crypto.subtle.exportKey('raw', key);
-    await chrome.storage.local.set({
+    await chrome.storage.session.set({
       deadbolt_session_key: bufferToBase64(rawKey),
       deadbolt_session_salt: bufferToBase64(salt)
     });
