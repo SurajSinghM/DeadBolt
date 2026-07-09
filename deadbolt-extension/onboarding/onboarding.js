@@ -1,19 +1,44 @@
 let currentStep = 0;
-const totalSteps = 5;
+const totalSteps = 7;
 
-function nextStep() {
-  if (currentStep < totalSteps - 1) {
-    document.querySelectorAll('.step')[currentStep].classList.remove('active');
-    currentStep++;
-    document.getElementById('carousel').style.transform = `translateX(-${currentStep * 20}%)`;
-    document.querySelectorAll('.step')[currentStep].classList.add('active');
-  }
+function goToStep(step) {
+  if (step < 0 || step >= totalSteps) return;
+  
+  document.querySelectorAll('.step')[currentStep].classList.remove('active');
+  currentStep = step;
+  document.getElementById('carousel').style.transform = `translateX(-${currentStep * (100 / totalSteps)}%)`;
+  document.querySelectorAll('.step')[currentStep].classList.add('active');
+  
+  // Update progress bar
+  document.getElementById('progress-fill').style.width = `${((currentStep + 1) / totalSteps) * 100}%`;
+  
+  // Update dots
+  document.querySelectorAll('.dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === currentStep);
+  });
 }
 
+function nextStep() {
+  goToStep(currentStep + 1);
+}
+
+// Navigation buttons
 document.getElementById('btn-next-1').addEventListener('click', nextStep);
 document.getElementById('btn-next-2').addEventListener('click', nextStep);
 document.getElementById('btn-next-3').addEventListener('click', nextStep);
+document.getElementById('btn-next-4').addEventListener('click', nextStep);
+document.getElementById('btn-next-5').addEventListener('click', nextStep);
 document.getElementById('btn-close').addEventListener('click', () => window.close());
+
+// Dot navigation (only allow going to previously visited steps)
+document.querySelectorAll('.dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    const target = parseInt(dot.dataset.step);
+    if (target <= currentStep) {
+      goToStep(target);
+    }
+  });
+});
 
 // Password strength logic
 function calcPasswordStrength(password) {
@@ -27,9 +52,9 @@ function calcPasswordStrength(password) {
   if (/[^a-zA-Z0-9]/.test(password)) score++;
   if (password.length >= 20) score++;
 
-  if (score <= 2) return { score, label: 'Weak', level: 'weak', pct: 25, color: '#ef4444' };
-  if (score <= 3) return { score, label: 'Fair', level: 'fair', pct: 50, color: '#f59e0b' };
-  if (score <= 5) return { score, label: 'Good', level: 'good', pct: 75, color: '#10b981' };
+  if (score <= 2) return { score, label: 'Weak', level: 'weak', pct: 25, color: '#f87171' };
+  if (score <= 3) return { score, label: 'Fair', level: 'fair', pct: 50, color: '#fbbf24' };
+  if (score <= 5) return { score, label: 'Good', level: 'good', pct: 75, color: '#34d399' };
   return { score, label: 'Strong', level: 'strong', pct: 100, color: '#059669' };
 }
 
@@ -87,6 +112,10 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
 
   // Create vault and setup session
   try {
+    const btn = document.getElementById('btn-create-vault');
+    btn.textContent = 'Creating vault...';
+    btn.disabled = true;
+
     const salt = getRandomBytes(32);
     const key = await deriveKey(pass, salt);
     
@@ -116,5 +145,8 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
   } catch (err) {
     console.error(err);
     error.textContent = 'Failed to create vault.';
+    const btn = document.getElementById('btn-create-vault');
+    btn.textContent = 'Create Vault';
+    btn.disabled = false;
   }
 });

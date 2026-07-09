@@ -1,46 +1,46 @@
 /* ═══════════════════════════════════════════════════
-   DeadBolt — Premium Modern UI
+   DeadBolt — Premium Modern UI (Dark Mode)
    Clean, refined, and deeply polished.
    ═══════════════════════════════════════════════════ */
 
 :root {
   /* ── Surfaces ── */
-  --bg-deep:        #f0f1f5;
-  --bg-primary:     #ffffff;
-  --bg-surface:     #f8f9fb;
-  --bg-hover:       #ebedf2;
-  --bg-elevated:    #ffffff;
+  --bg-deep:        #0a0a0f;
+  --bg-primary:     #111118;
+  --bg-surface:     #18181f;
+  --bg-hover:       #1f1f28;
+  --bg-elevated:    #1a1a22;
 
   /* ── Borders ── */
-  --border-default: #e2e4ea;
-  --border-light:   #eff0f3;
-  --border-focus:   #1a1a2e;
+  --border-default: #2a2a35;
+  --border-light:   #1e1e28;
+  --border-focus:   #e2e8f0;
 
   /* ── Text ── */
-  --text-primary:   #111827;
-  --text-secondary: #5b6378;
-  --text-muted:     #9ca3b4;
-  --text-inverse:   #ffffff;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --text-inverse:   #0a0a0f;
 
   /* ── Accent ── */
-  --accent:         #111827;
-  --accent-hover:   #1f2937;
-  --accent-light:   rgba(17, 24, 39, 0.07);
-  --accent-glow:    rgba(17, 24, 39, 0.12);
+  --accent:         #e2e8f0;
+  --accent-hover:   #f8fafc;
+  --accent-light:   rgba(226, 232, 240, 0.08);
+  --accent-glow:    rgba(226, 232, 240, 0.12);
 
   /* ── Semantic ── */
-  --success:        #10b981;
-  --warning:        #f59e0b;
-  --danger:         #ef4444;
-  --danger-bg:      rgba(239, 68, 68, 0.08);
-  --danger-bg-hover:rgba(239, 68, 68, 0.16);
+  --success:        #34d399;
+  --warning:        #fbbf24;
+  --danger:         #f87171;
+  --danger-bg:      rgba(248, 113, 113, 0.1);
+  --danger-bg-hover:rgba(248, 113, 113, 0.2);
 
   /* ── Shadows ── */
-  --shadow-xs:   0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:   0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg:   0 12px 32px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
-  --shadow-fab:  0 6px 20px rgba(17, 24, 39, 0.25);
+  --shadow-xs:   0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg:   0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
+  --shadow-fab:  0 6px 24px rgba(0, 0, 0, 0.5);
 
   /* ── Geometry ── */
   --radius-xs:   6px;
@@ -794,8 +794,8 @@ button {
   position: absolute;
   bottom: 72px; left: 50%;
   transform: translateX(-50%) translateY(12px);
-  background: var(--text-primary);
-  color: var(--text-inverse);
+  background: #e2e8f0;
+  color: #0a0a0f;
   padding: 10px 18px;
   border-radius: var(--radius-full);
   font-size: 13px;
@@ -820,7 +820,7 @@ button {
 .confirm-overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(17, 24, 39, 0.35);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
