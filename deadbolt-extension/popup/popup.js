@@ -330,11 +330,12 @@
 
     // Toggle bottom nav visibility
     const nav = $('#bottom-nav');
-    if (['screen-vault', 'screen-generator', 'screen-settings'].includes(id)) {
+    if (['screen-vault', 'screen-generator', 'screen-breach', 'screen-settings'].includes(id)) {
       nav.style.display = 'flex';
       $$('.nav-item').forEach(btn => btn.classList.remove('active'));
       if (id === 'screen-vault') $('#btn-vault').classList.add('active');
       if (id === 'screen-generator') $('#btn-generator').classList.add('active');
+      if (id === 'screen-breach') $('#btn-breach').classList.add('active');
       if (id === 'screen-settings') $('#btn-settings').classList.add('active');
     } else {
       nav.style.display = 'none';
@@ -485,6 +486,167 @@
     } catch {
       showToast('Cannot auto-fill on this page', 'error');
     }
+  }
+
+  // ══════════════════════════════════
+  //  BREACH CHECK (Have I Been Pwned)
+  // ══════════════════════════════════
+
+  async function sha1Hash(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  async function checkHIBP(password) {
+    const hash = await sha1Hash(password);
+    const prefix = hash.slice(0, 5);
+    const suffix = hash.slice(5);
+
+    try {
+      const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: { 'Add-Padding': 'true' }
+      });
+      if (!response.ok) return 0;
+
+      const text = await response.text();
+      const lines = text.split('\n');
+      for (const line of lines) {
+        const [hashSuffix, count] = line.trim().split(':');
+        if (hashSuffix === suffix) {
+          return parseInt(count, 10);
+        }
+      }
+      return 0;
+    } catch {
+      return -1; // network error
+    }
+  }
+
+  let breachResults = [];
+  let isScanning = false;
+
+  async function checkBreaches() {
+    if (isScanning) return;
+    if (state.entries.length === 0) {
+      showToast('No entries in vault to check', 'error');
+      return;
+    }
+
+    isScanning = true;
+    breachResults = [];
+
+    const shield = $('#breach-shield');
+    const scanBtn = $('#btn-scan-breach');
+    const progress = $('#breach-progress');
+    const progressFill = $('#breach-progress-fill');
+    const progressText = $('#breach-progress-text');
+    const resultsEl = $('#breach-results');
+    const emptyEl = $('#breach-empty');
+
+    // Reset UI
+    shield.className = 'breach-shield scanning';
+    scanBtn.style.display = 'none';
+    progress.style.display = 'block';
+    resultsEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+    progressFill.style.width = '0%';
+    $('#breach-title').textContent = 'Scanning...';
+    $('#breach-subtitle').textContent = 'Checking your passwords against known breaches';
+
+    const entries = state.entries.filter(e => e.password);
+    let checked = 0;
+    let errors = 0;
+
+    for (const entry of entries) {
+      checked++;
+      progressText.textContent = `Checking ${checked} of ${entries.length}...`;
+      progressFill.style.width = `${(checked / entries.length) * 100}%`;
+
+      const count = await checkHIBP(entry.password);
+
+      if (count > 0) {
+        breachResults.push({
+          entryId: entry.id,
+          title: entry.title || 'Untitled',
+          username: entry.username || '',
+          url: entry.url || '',
+          breachCount: count
+        });
+      } else if (count === -1) {
+        errors++;
+      }
+
+      // Rate limit: 100ms between API calls
+      if (checked < entries.length) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    isScanning = false;
+    progress.style.display = 'none';
+    scanBtn.style.display = 'flex';
+    scanBtn.textContent = 'Scan Again';
+
+    if (breachResults.length > 0) {
+      shield.className = 'breach-shield danger';
+      $('#breach-title').textContent = `${breachResults.length} compromised`;
+      $('#breach-subtitle').textContent = `${breachResults.length} of ${entries.length} passwords found in data breaches`;
+      renderBreachResults();
+    } else {
+      shield.className = 'breach-shield safe';
+      $('#breach-title').textContent = 'All clear!';
+      const errMsg = errors > 0 ? ` (${errors} could not be checked)` : '';
+      $('#breach-subtitle').textContent = `None of your passwords appear in known breaches${errMsg}`;
+    }
+  }
+
+  function renderBreachResults() {
+    const resultsEl = $('#breach-results');
+    const listEl = $('#breach-results-list');
+    const headingEl = $('#breach-results-heading');
+
+    headingEl.textContent = `Compromised Passwords (${breachResults.length})`;
+    resultsEl.style.display = 'block';
+
+    listEl.innerHTML = breachResults.map((result, i) => {
+      const favicon = getFaviconUrl(result.url);
+      const initial = getInitial(result.title);
+      const iconContent = favicon
+        ? `<img src="${favicon}" alt="" onerror="this.parentNode.textContent='${initial}'">`
+        : initial;
+
+      const countLabel = result.breachCount >= 1000000
+        ? `${(result.breachCount / 1000000).toFixed(1)}M`
+        : result.breachCount >= 1000
+          ? `${(result.breachCount / 1000).toFixed(0)}K`
+          : result.breachCount.toString();
+
+      return `
+        <div class="breach-result-card" data-breach-id="${result.entryId}" style="animation-delay: ${i * 40}ms">
+          <div class="breach-result-icon">${iconContent}</div>
+          <div class="breach-result-info">
+            <div class="breach-result-title">${escapeHtml(result.title)}</div>
+            <div class="breach-result-user">${escapeHtml(result.username || '—')}</div>
+          </div>
+          <div class="breach-count-badge">${countLabel}×</div>
+        </div>`;
+    }).join('');
+  }
+
+  function resetBreachUI() {
+    const shield = $('#breach-shield');
+    shield.className = 'breach-shield';
+    $('#breach-title').textContent = 'Check your passwords';
+    $('#breach-subtitle').textContent = 'Scan your vault against known data breaches';
+    $('#btn-scan-breach').textContent = 'Scan Now';
+    $('#btn-scan-breach').style.display = 'flex';
+    $('#breach-progress').style.display = 'none';
+    $('#breach-results').style.display = 'none';
+    $('#breach-empty').style.display = 'none';
+    breachResults = [];
   }
 
   // ══════════════════════════════════
@@ -748,6 +910,21 @@
         state.generatorCallback = null;
       }
       showScreen('screen-entry');
+    });
+
+    // ── Breach check screen ──
+    $('#btn-breach').addEventListener('click', () => {
+      showScreen('screen-breach');
+    });
+
+    $('#btn-scan-breach').addEventListener('click', checkBreaches);
+
+    // ── Breach result clicks (edit entry) ──
+    $('#breach-results-list').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-breach-id]');
+      if (card) {
+        openEditEntry(card.dataset.breachId);
+      }
     });
 
     // ── Settings screen ──

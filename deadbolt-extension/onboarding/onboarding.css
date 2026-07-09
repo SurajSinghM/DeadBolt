@@ -48,7 +48,7 @@ body {
 }
 .progress-fill {
   height: 100%;
-  width: 14.28%;
+  width: 12.5%;
   background: var(--accent);
   border-radius: 0 3px 3px 0;
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -70,11 +70,11 @@ body {
 .carousel {
   display: flex;
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  width: 700%; /* 7 steps */
+  width: 800%; /* 8 steps */
 }
 
 .step {
-  width: calc(100% / 7);
+  width: calc(100% / 8);
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.4s 0.1s;

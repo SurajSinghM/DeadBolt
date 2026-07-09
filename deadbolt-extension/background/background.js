@@ -107,6 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success });
       });
       return true;
+    }
   });
   return true; // Always return true because we handle EVERYTHING asynchronously after initStatePromise
 });

@@ -12,7 +12,8 @@
     "webNavigation"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://api.pwnedpasswords.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -32,7 +33,7 @@
       "matches": ["https://*/*", "http://*/*"],
       "js": ["content/content.js"],
       "css": ["content/content.css"],
-      "run_at": "document_end"
+      "run_at": "document_start"
     }
   ],
   "icons": {
@@ -40,5 +41,11 @@
     "32": "favicon logo/favicon-32x32.png",
     "48": "favicon logo/android-chrome-192x192.png",
     "128": "favicon logo/android-chrome-192x192.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["favicon logo/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

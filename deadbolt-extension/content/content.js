@@ -16,6 +16,103 @@
   if (window.__deadboltInjected) return;
   window.__deadboltInjected = true;
 
+  // ── Keystroke Spyware & Session Replay Blocker ──
+  const injectBlocker = () => {
+    const blockerCode = `
+      (() => {
+        const TRACKER_KEYWORDS = [
+          'hotjar', 'hj', 'fullstory', 'fs.js', 'logrocket', 'lr-ingest', 
+          'inspectlet', 'clarity', 'smartlook', 'luckyorange', 'mouseflow', 
+          'sessionstack', 'dynatrace', 'ruxit', 'contentsquare', 'heap.js', 
+          'pendo', 'userpilot', 'appcues', 'sentry', 'bugsnag', 'datadog', 
+          'google-analytics', 'googleanalytics', 'analytics.js', 'gtag', 'gtm.js', 
+          'tagmanager', 'facebook', 'fbevents', 'fbpx', 'pixel', 'mixpanel',
+          'amplitude', 'segment.io', 'segment.js', 'crazyegg'
+        ];
+
+        function isTrackerOrSpyware(stack) {
+          if (!stack) return false;
+          const stackLower = stack.toLowerCase();
+          
+          for (const keyword of TRACKER_KEYWORDS) {
+            if (stackLower.includes(keyword)) return true;
+          }
+          
+          if (stackLower.includes('http://') || stackLower.includes('https://')) {
+            const currentDomain = window.location.hostname.replace(/^www\\\\./, '');
+            const lines = stackLower.split('\\\\n');
+            for (const line of lines) {
+              const match = line.match(/(https?:\\\\/\\\\/[^\\\\s:)]+)/);
+              if (match) {
+                try {
+                  const url = new URL(match[0]);
+                  const host = url.hostname.replace(/^www\\\\./, '');
+                  if (host !== currentDomain && !host.endsWith('.' + currentDomain)) {
+                    const isCommonCdn = /cdnjs|unpkg|jsdelivr|bootstrapcdn|jquery/.test(host);
+                    if (!isCommonCdn) return true;
+                  }
+                } catch {}
+              }
+            }
+          }
+          return false;
+        }
+
+        function isSensitiveInput(el) {
+          const type = (el.type || '').toLowerCase();
+          if (type === 'password') return true;
+          if (type === 'email') return true;
+          const nameOrId = (el.name || '') + '|' + (el.id || '') + '|' + (el.placeholder || '') + '|' + (el.autocomplete || '');
+          return /password|passcode|passphrase|secret|email|username|login|usr/i.test(nameOrId);
+        }
+
+        // 1. Intercept addEventListener to prevent keylogging
+        const originalAddEventListener = HTMLInputElement.prototype.addEventListener;
+        HTMLInputElement.prototype.addEventListener = function(type, listener, options) {
+          if (isSensitiveInput(this) && ['keydown', 'keypress', 'keyup', 'input', 'change', 'paste'].includes(type)) {
+            const stack = new Error().stack || '';
+            if (isTrackerOrSpyware(stack)) {
+              console.warn('[DeadBolt Blocker] Blocked spyware event listener (' + type + ') on sensitive input:', this);
+              return;
+            }
+          }
+          return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // 2. Intercept value getter to prevent reading input contents
+        const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        if (originalValueDescriptor) {
+          Object.defineProperty(HTMLInputElement.prototype, 'value', {
+            get: function() {
+              if (isSensitiveInput(this)) {
+                const stack = new Error().stack || '';
+                if (isTrackerOrSpyware(stack)) {
+                  console.warn('[DeadBolt Blocker] Blocked spyware value read on sensitive input:', this);
+                  return '';
+                }
+              }
+              return originalValueDescriptor.get.call(this);
+            },
+            set: function(val) {
+              originalValueDescriptor.set.call(this, val);
+            },
+            configurable: true
+          });
+        }
+      })();
+    `;
+
+    try {
+      const script = document.createElement('script');
+      script.textContent = blockerCode;
+      (document.head || document.documentElement).appendChild(script);
+      script.remove();
+    } catch (e) {
+      console.error('[DeadBolt] Failed to inject spyware blocker:', e);
+    }
+  };
+  injectBlocker();
+
   // ══════════════════════════════════
   //  FORM TYPE CLASSIFICATION
   //  (Mirrors Proton Pass FormType enum)
@@ -481,37 +578,38 @@
         margin: auto;
         top: 0;
         bottom: 0;
-        background: linear-gradient(135deg, #58a6ff 0%, #a371f7 100%);
+        background: transparent;
         border: none;
-        border-radius: 5px;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0;
         max-width: 0;
-        transition: opacity 0.15s ease, max-width 0.15s ease;
-        box-shadow: 0 2px 6px rgba(88, 166, 255, 0.3);
+        transition: opacity 0.15s ease, max-width 0.15s ease, transform 0.15s ease;
       }
       button.visible {
-        opacity: 0.85;
+        opacity: 0.9;
         max-width: 28px;
       }
       button:hover {
         opacity: 1;
-        box-shadow: 0 3px 10px rgba(88, 166, 255, 0.4);
-        transform: scale(1.05);
+        transform: scale(1.1);
       }
-      button svg {
-        width: 14px;
-        height: 14px;
-        color: #fff;
-        flex-shrink: 0;
+      button img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        pointer-events: none;
       }
     `;
 
     const button = document.createElement('button');
     button.title = 'Fill with DeadBolt';
-    button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    const iconUrl = chrome.runtime.getURL('favicon logo/favicon-32x32.png');
+    button.innerHTML = `<img src="${iconUrl}" alt="DeadBolt">`;
 
     shadow.appendChild(style);
     shadow.appendChild(button);

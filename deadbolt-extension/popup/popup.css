@@ -872,3 +872,222 @@ button {
   padding: 10px;
   font-size: 13px;
 }
+
+/* ════════════════════════════════════
+   STRENGTH VARIABLES (used by JS)
+   ════════════════════════════════════ */
+
+:root {
+  --strength-weak:   #f87171;
+  --strength-fair:   #fbbf24;
+  --strength-good:   #34d399;
+  --strength-strong: #22d3ee;
+}
+
+/* ════════════════════════════════════
+   BREACH CHECK SCREEN
+   ════════════════════════════════════ */
+
+.breach-summary-card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border-default);
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-xs);
+}
+
+.breach-shield {
+  width: 56px; height: 56px;
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  background: var(--accent-light);
+  color: var(--accent);
+  transition: background 0.3s, color 0.3s;
+}
+.breach-shield svg { width: 28px; height: 28px; }
+
+.breach-shield.scanning {
+  animation: shieldPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.breach-shield.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.breach-shield.safe {
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--success);
+}
+
+@keyframes shieldPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+.breach-summary-text {
+  margin-bottom: 16px;
+}
+.breach-summary-text h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.2px;
+}
+.breach-summary-text p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* Progress bar */
+.breach-progress {
+  margin-top: 16px;
+}
+.breach-progress-bar {
+  height: 4px;
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.breach-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.breach-progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Results */
+.breach-results-heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+
+.breach-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breach-result-card {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid rgba(248, 113, 113, 0.2);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  animation: cardSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.breach-result-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--danger);
+}
+.breach-result-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
+.breach-result-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+  color: var(--danger);
+  margin-right: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.breach-result-icon img {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+}
+
+.breach-result-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  justify-content: center;
+}
+.breach-result-title {
+  font-weight: 600; font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 1px;
+  letter-spacing: -0.1px;
+}
+.breach-result-user {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.breach-count-badge {
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8px;
+  border: 1px solid rgba(248, 113, 113, 0.12);
+}
+
+/* Empty / All Clear */
+.breach-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  padding: 24px;
+  animation: breachAllClear 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes breachAllClear {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.breach-empty-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.1);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+  color: var(--success);
+}
+.breach-empty-icon svg {
+  width: 32px; height: 32px;
+}
+.breach-empty p {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--success);
+  margin-bottom: 4px;
+}
+.breach-empty span {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+}

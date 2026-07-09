@@ -1,5 +1,5 @@
 let currentStep = 0;
-const totalSteps = 7;
+const totalSteps = 8;
 
 function goToStep(step) {
   if (step < 0 || step >= totalSteps) return;
@@ -27,6 +27,7 @@ document.getElementById('btn-next-1').addEventListener('click', nextStep);
 document.getElementById('btn-next-2').addEventListener('click', nextStep);
 document.getElementById('btn-next-3').addEventListener('click', nextStep);
 document.getElementById('btn-next-4').addEventListener('click', nextStep);
+document.getElementById('btn-next-4-spyware').addEventListener('click', nextStep);
 document.getElementById('btn-next-5').addEventListener('click', nextStep);
 document.getElementById('btn-close').addEventListener('click', () => window.close());
 
