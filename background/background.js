@@ -229,8 +229,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'confirm-save-credential':
-        if (isUnlocked && message.credential && sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
-          handleSaveCredential(message.credential).then(() => sendResponse({ success: true }));
+        if (message.credential && sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
+          if (isUnlocked) {
+            handleSaveCredential(message.credential).then(() => sendResponse({ success: true }));
+          } else {
+            chrome.storage.local.get(['deadbolt_pending_vault_saves'], (res) => {
+              const saves = res.deadbolt_pending_vault_saves || [];
+              saves.push(message.credential);
+              chrome.storage.local.set({ 'deadbolt_pending_vault_saves': saves }, () => {
+                sendResponse({ success: true, pending: true });
+              });
+            });
+          }
           return true;
         }
         sendResponse({ success: false });
@@ -562,7 +572,7 @@ async function deriveKey(password, salt) {
 
 async function handleUnlockVault(masterPassword) {
   try {
-    const data = await chrome.storage.local.get(['deadbolt_salt', 'deadbolt_verify']);
+    const data = await chrome.storage.local.get(['deadbolt_salt', 'deadbolt_verify', 'deadbolt_pending_vault_saves']);
     if (!data.deadbolt_salt || !data.deadbolt_verify) return false;
 
     const salt = base64ToBuffer(data.deadbolt_salt);
@@ -591,6 +601,14 @@ async function handleUnlockVault(masterPassword) {
     isUnlocked = true;
     updateBadge(true);
     resetAutoLock();
+
+    // Process any pending saves that were queued while locked
+    if (data.deadbolt_pending_vault_saves && data.deadbolt_pending_vault_saves.length > 0) {
+      for (const cred of data.deadbolt_pending_vault_saves) {
+        await handleSaveCredential(cred);
+      }
+      chrome.storage.local.remove(['deadbolt_pending_vault_saves']);
+    }
 
     return true;
   } catch (err) {

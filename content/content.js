@@ -892,32 +892,34 @@
         pointer-events: none !important;
       }
       .toast {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
-        font-family: 'Inter', -apple-system, sans-serif;
+        background: #111118;
+        border: 1px solid #1e1e28;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         padding: 16px;
         pointer-events: all;
         display: flex;
         flex-direction: column;
         gap: 12px;
         width: 300px;
-        animation: slideIn 0.3s ease-out forwards;
+        animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
       @keyframes slideIn {
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
       }
-      .title { font-weight: 600; color: #0f172a; font-size: 14px; }
-      .desc { font-size: 13px; color: #64748b; margin: 0; }
+      .title { font-weight: 600; color: #f1f5f9; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+      .desc { font-size: 13px; color: #94a3b8; margin: 0; }
       .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
       button {
-        padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.2s;
+        padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      button:hover { opacity: 0.9; }
-      .btn-cancel { background: #f1f5f9; color: #475569; }
-      .btn-save { background: #f97316; color: white; }
+      .btn-cancel { background: #1e1e28; color: #94a3b8; border: 1px solid #2a2a35; }
+      .btn-cancel:hover { background: #2a2a35; color: #f1f5f9; }
+      .btn-save { background: #f97316; color: #ffffff; }
+      .btn-save:hover { background: #ea580c; transform: translateY(-1px); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+      .btn-save:active { transform: translateY(0); box-shadow: none; }
     `;
 
     const container = document.createElement('div');

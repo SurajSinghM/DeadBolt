@@ -171,6 +171,10 @@ body {
 
 .auth-form { width: 100%; }
 
+.entry-form {
+  padding-bottom: 80px;
+}
+
 /* ════════════════════════════════════
    INPUTS
    ════════════════════════════════════ */
@@ -604,6 +608,20 @@ button {
 .fab:active {
   transform: scale(0.95);
   box-shadow: var(--shadow-sm);
+}
+
+.entry-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-default);
+  z-index: 10;
+}
+.w-full {
+  width: 100%;
 }
 .fab svg { width: 22px; height: 22px; }
 
