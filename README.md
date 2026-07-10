@@ -31,7 +31,7 @@ Since DeadBolt is currently in active development, you must load it as an "Unpac
 2. Open Google Chrome and navigate to the Extensions page: `chrome://extensions/`.
 3. Enable **Developer mode** using the toggle switch in the top right corner.
 4. Click the **Load unpacked** button in the top left.
-5. Select the `deadbolt-extension` directory (the folder containing the `manifest.json` file).
+5. Select the `DeadBolt` repository directory (the folder containing the `manifest.json` file).
 6. DeadBolt will appear in your extensions list. Pin it to your toolbar for easy access!
 
 ## Architecture Overview
