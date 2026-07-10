@@ -861,29 +861,35 @@
   }
 
   window.addEventListener('message', (e) => {
+    try {
+      if (e.origin !== chrome.runtime.getURL('').replace(/\/$/, '')) return;
 
-    if (e.origin !== chrome.runtime.getURL('').replace(/\/$/, '')) return;
+      if (e.data?.type === 'DEADBOLT_UNLOCKED') {
+        if (activeDropdownHost) {
+          activeDropdownHost.remove();
+          activeDropdownHost = null;
+        }
 
-    if (e.data?.type === 'DEADBOLT_UNLOCKED') {
-      if (activeDropdownHost) {
-        activeDropdownHost.remove();
-        activeDropdownHost = null;
+        if (lastClickedField) {
+          chrome.runtime.sendMessage({
+            action: 'request-autofill',
+            token: sessionActionToken,
+            url: window.location.origin,
+            hostname: window.location.hostname,
+            formType: lastClickedFormType
+          });
+        }
+      } else if (e.data?.type === 'DEADBOLT_DISMISS_UNLOCK') {
+        if (activeDropdownHost) {
+          activeDropdownHost.remove();
+          activeDropdownHost = null;
+        }
       }
-
-      if (lastClickedField) {
-        chrome.runtime.sendMessage({
-          action: 'request-autofill',
-          token: sessionActionToken,
-          url: window.location.origin,
-          hostname: window.location.hostname,
-          formType: lastClickedFormType
-        });
+    } catch (err) {
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        return;
       }
-    } else if (e.data?.type === 'DEADBOLT_DISMISS_UNLOCK') {
-      if (activeDropdownHost) {
-        activeDropdownHost.remove();
-        activeDropdownHost = null;
-      }
+      throw err;
     }
   });
 

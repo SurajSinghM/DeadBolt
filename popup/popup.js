@@ -21,7 +21,7 @@
     generatorCallback: null,
     filterFolder: '',
     filterTag: '',
-    settings: { autoLockMinutes: 5, forceHttps: false, blockWebRtc: false }
+    settings: { autoLockMinutes: 5, forceHttps: true, blockWebRtc: true }
   };
 
   function getRandomBytes(length) {

@@ -597,7 +597,7 @@ async function handleUnlockVault(masterPassword) {
   }
 }
 
-let forceHttpsEnabled = false;
+let forceHttpsEnabled = true;
 
 function updateWebRtcPolicy(block) {
   if (chrome.privacy && chrome.privacy.network && chrome.privacy.network.webRTCIPHandlingPolicy) {
@@ -671,15 +671,16 @@ let initStatePromise = new Promise((resolve) => {
         updateBadge(false);
       }
 
+      let settings = { autoLockMinutes: 5, forceHttps: true, blockWebRtc: true };
       if (localRes.deadbolt_settings) {
         try {
-          const settings = JSON.parse(localRes.deadbolt_settings);
-          if (settings.autoLockMinutes) autoLockMinutes = settings.autoLockMinutes;
-          updateWebRtcPolicy(settings.blockWebRtc);
-          updateHttpsEnforcer(settings.forceHttps);
-          forceHttpsEnabled = !!settings.forceHttps;
+          settings = { ...settings, ...JSON.parse(localRes.deadbolt_settings) };
         } catch { }
       }
+      if (settings.autoLockMinutes) autoLockMinutes = settings.autoLockMinutes;
+      updateWebRtcPolicy(settings.blockWebRtc);
+      updateHttpsEnforcer(settings.forceHttps);
+      forceHttpsEnabled = !!settings.forceHttps;
       
       resolve();
     });
