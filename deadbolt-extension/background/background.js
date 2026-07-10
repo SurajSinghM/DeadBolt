@@ -483,6 +483,8 @@ async function handleSaveCredential(credential) {
       username: credential.username,
       password: credential.password,
       notes: 'Auto-captured by DeadBolt',
+      folder: '',
+      tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

@@ -16,6 +16,19 @@
   if (window.__deadboltInjected) return;
   window.__deadboltInjected = true;
 
+  // Security: Earliest-possible capture listener to prevent global keyloggers from intercepting master password
+  ['keydown', 'keypress', 'keyup', 'input', 'beforeinput', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(evt => {
+    window.addEventListener(evt, (e) => {
+      if (e.composed && e.composedPath) {
+        const path = e.composedPath();
+        if (path.some(node => node.nodeName && node.nodeName.toLowerCase() === 'deadbolt-unlock-prompt')) {
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+        }
+      }
+    }, true);
+  });
+
   // ── Keystroke Spyware & Session Replay Blocker ──
   // Moved to blocker.js to avoid CSP violations with inline scripts
 

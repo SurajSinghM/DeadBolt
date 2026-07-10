@@ -88,6 +88,14 @@
             </svg>
           </button>
         </div>
+        <div class="filter-container">
+          <select id="filter-folder" class="filter-select">
+            <option value="">All Folders</option>
+          </select>
+          <select id="filter-tag" class="filter-select">
+            <option value="">All Tags</option>
+          </select>
+        </div>
       </header>
 
       <div class="scroll-content list-content">
@@ -360,6 +368,14 @@
                 </svg>
               </button>
             </div>
+          </div>
+          <div class="input-group">
+            <label for="entry-folder">Folder</label>
+            <input type="text" id="entry-folder" placeholder="e.g. Work" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <label for="entry-tags">Tags</label>
+            <input type="text" id="entry-tags" placeholder="e.g. social, important (comma separated)" autocomplete="off">
           </div>
           <div class="input-group">
             <label for="entry-notes">Notes</label>

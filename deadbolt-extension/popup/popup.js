@@ -24,6 +24,8 @@
     salt: null,
     editingId: null,
     generatorCallback: null,
+    filterFolder: '',
+    filterTag: '',
     settings: { autoLockMinutes: 5, forceHttps: false, blockWebRtc: false }
   };
 
@@ -438,8 +440,14 @@
     const search = filter.toLowerCase().trim();
 
     let filtered = state.entries;
+    if (state.filterFolder) {
+      filtered = filtered.filter(e => (e.folder || '') === state.filterFolder);
+    }
+    if (state.filterTag) {
+      filtered = filtered.filter(e => (e.tags || []).includes(state.filterTag));
+    }
     if (search) {
-      filtered = state.entries.filter(e =>
+      filtered = filtered.filter(e =>
         (e.title || '').toLowerCase().includes(search) ||
         (e.username || '').toLowerCase().includes(search) ||
         (e.url || '').toLowerCase().includes(search) ||
@@ -475,6 +483,10 @@
           <div class="entry-info">
             <div class="entry-title">${escapeHtml(entry.title || 'Untitled')}</div>
             <div class="entry-user">${escapeHtml(entry.username || '—')}</div>
+            <div class="entry-meta">
+              ${entry.folder ? `<span class="entry-badge badge-folder">${escapeHtml(entry.folder)}</span>` : ''}
+              ${(entry.tags || []).map(t => `<span class="entry-badge badge-tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
           </div>
           <div class="entry-actions">
             <button class="btn-action" data-action="copy-user" data-id="${escapeHtml(entry.id)}" title="Copy username">
@@ -489,6 +501,46 @@
           </div>
         </div>`;
     }).join('');
+    
+    populateFilterDropdowns();
+  }
+
+  function populateFilterDropdowns() {
+    const folders = new Set();
+    const tags = new Set();
+
+    state.entries.forEach(e => {
+      if (e.folder) folders.add(e.folder);
+      if (e.tags && Array.isArray(e.tags)) {
+        e.tags.forEach(t => tags.add(t));
+      }
+    });
+
+    const folderSelect = $('#filter-folder');
+    const tagSelect = $('#filter-tag');
+
+    // Store current values to restore them after rebuild
+    const currFolder = folderSelect.value;
+    const currTag = tagSelect.value;
+
+    folderSelect.innerHTML = '<option value="">All Folders</option>' + 
+      Array.from(folders).sort().map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+    
+    tagSelect.innerHTML = '<option value="">All Tags</option>' + 
+      Array.from(tags).sort().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+
+    // Restore values
+    if (folders.has(currFolder)) {
+      folderSelect.value = currFolder;
+    } else {
+      state.filterFolder = '';
+    }
+
+    if (tags.has(currTag)) {
+      tagSelect.value = currTag;
+    } else {
+      state.filterTag = '';
+    }
   }
 
   function escapeHtml(str) {
@@ -833,6 +885,17 @@
       renderEntries();
     });
 
+    // ── Filters ──
+    $('#filter-folder').addEventListener('change', (e) => {
+      state.filterFolder = e.target.value;
+      renderEntries($('#search-input').value);
+    });
+    
+    $('#filter-tag').addEventListener('change', (e) => {
+      state.filterTag = e.target.value;
+      renderEntries($('#search-input').value);
+    });
+
     // ── Entry list clicks (delegation) ──
     $('#entries-list').addEventListener('click', (e) => {
       const actionBtn = e.target.closest('[data-action]');
@@ -878,6 +941,8 @@
         url: $('#entry-url').value.trim(),
         username: $('#entry-username').value.trim(),
         password: $('#entry-password').value,
+        folder: $('#entry-folder').value.trim(),
+        tags: $('#entry-tags').value.split(',').map(t => t.trim()).filter(t => t),
         notes: $('#entry-notes').value.trim(),
         updated: new Date().toISOString()
       };
@@ -1121,6 +1186,8 @@
     $('#entry-username').value = '';
     $('#entry-password').value = '';
     $('#entry-password').type = 'password';
+    $('#entry-folder').value = '';
+    $('#entry-tags').value = '';
     $('#entry-notes').value = '';
 
     // Pre-fill URL from current tab
@@ -1152,6 +1219,8 @@
     $('#entry-username').value = entry.username || '';
     $('#entry-password').value = entry.password || '';
     $('#entry-password').type = 'password';
+    $('#entry-folder').value = entry.folder || '';
+    $('#entry-tags').value = (entry.tags || []).join(', ');
     $('#entry-notes').value = entry.notes || '';
 
     showScreen('screen-entry');
