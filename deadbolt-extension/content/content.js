@@ -16,6 +16,8 @@
   if (window.__deadboltInjected) return;
   window.__deadboltInjected = true;
 
+  let sessionActionToken = null;
+
   // Security: Earliest-possible capture listener to prevent global keyloggers from intercepting master password
   ['keydown', 'keypress', 'keyup', 'input', 'beforeinput', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(evt => {
     window.addEventListener(evt, (e) => {
@@ -509,6 +511,7 @@
     if (container && !container.hasAttribute('data-deadbolt-btn-listener')) {
       container.setAttribute('data-deadbolt-btn-listener', 'true');
       container.addEventListener('click', (e) => {
+        if (!e.isTrusted) return;
         const btn = e.target.closest('button, input[type="submit"], input[type="button"], [role="button"]');
         if (btn && state.password) {
           // If a button is clicked, we wait a moment to see if the DOM changes.
@@ -543,16 +546,17 @@
     
     chrome.runtime.sendMessage({
       action: 'save-captured-credential',
+      token: sessionActionToken,
       credential: {
+        url: window.location.href,
         hostname: window.location.hostname,
-        url: window.location.origin,
         username: state.username,
         password: state.password
       }
     });
     
     setTimeout(() => {
-      chrome.runtime.sendMessage({ action: 'check-pending-saves' }, (res) => {
+      chrome.runtime.sendMessage({ action: 'check-pending-saves', token: sessionActionToken }, (res) => {
         if (res?.credential) renderSavePrompt(res.credential);
       });
     }, 1500);
@@ -661,6 +665,7 @@
 
     // Click handler: attempt to find matching credentials and fill
     button.addEventListener('click', (e) => {
+      if (!e.isTrusted) return;
       e.preventDefault();
       e.stopPropagation();
 
@@ -670,6 +675,7 @@
       // Send message to background to check for matching credentials
       chrome.runtime.sendMessage({
         action: 'request-autofill',
+        token: sessionActionToken,
         url: window.location.origin,
         hostname: window.location.hostname,
         formType: formType
@@ -792,11 +798,12 @@
         <div class="username">${escapeHtml(cred.username || 'No username')}</div>
       `;
       item.addEventListener('click', (e) => {
+        if (!e.isTrusted) return;
         e.preventDefault();
         e.stopPropagation();
         
         // Fetch full credential from background
-        chrome.runtime.sendMessage({ action: 'get-credential', id: cred.id }, (response) => {
+        chrome.runtime.sendMessage({ action: 'get-credential', id: cred.id, token: sessionActionToken }, (response) => {
           if (response) {
             performAutofill(response.username, response.password);
           }
@@ -818,6 +825,7 @@
       genItem.className = 'dropdown-item';
       genItem.innerHTML = `<div class="title" style="color: #f97316;">✨ Generate Secure Password</div>`;
       genItem.addEventListener('click', (e) => {
+        if (!e.isTrusted) return;
         e.preventDefault();
         e.stopPropagation();
         
@@ -923,9 +931,13 @@
       </div>
     `;
 
-    container.querySelector('.btn-cancel').addEventListener('click', () => host.remove());
-    container.querySelector('.btn-save').addEventListener('click', () => {
-      chrome.runtime.sendMessage({ action: 'confirm-save-credential', credential }, (res) => {
+    container.querySelector('.btn-cancel').addEventListener('click', (e) => {
+      if (!e.isTrusted) return;
+      host.remove();
+    });
+    container.querySelector('.btn-save').addEventListener('click', (e) => {
+      if (!e.isTrusted) return;
+      chrome.runtime.sendMessage({ action: 'confirm-save-credential', token: sessionActionToken, credential }, (res) => {
         if (res?.success) {
           container.innerHTML = `<div class="title" style="color: #10b981; text-align: center;">✅ Saved to Vault!</div>`;
           setTimeout(() => host.remove(), 1500);
@@ -1011,6 +1023,7 @@
     const btn = container.querySelector('button');
 
     form.addEventListener('submit', (e) => {
+      if (!e.isTrusted) return;
       e.preventDefault();
       const pw = input.value;
       if (!pw) return;
@@ -1026,6 +1039,7 @@
           if (lastClickedField) {
             chrome.runtime.sendMessage({
               action: 'request-autofill',
+              token: sessionActionToken,
               url: window.location.origin,
               hostname: window.location.hostname,
               formType: lastClickedFormType
@@ -1353,6 +1367,8 @@
             action: 'login-form-detected',
             hostname: window.location.hostname,
             url: window.location.origin
+          }, (res) => {
+            if (res && res.token) sessionActionToken = res.token;
           });
         } catch { /* Extension context invalidated */ }
       }
@@ -1368,6 +1384,8 @@
           action: 'login-form-detected',
           hostname: window.location.hostname,
           url: window.location.origin
+        }, (res) => {
+          if (res && res.token) sessionActionToken = res.token;
         });
       } catch { /* Extension context invalidated */ }
     }

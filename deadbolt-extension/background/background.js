@@ -8,6 +8,11 @@
 let isUnlocked = false;
 const detectedLoginTabs = new Map();
 const pendingSaves = new Map(); // tabId -> { hostname, url }
+const contentScriptTokens = new Map(); // tabId -> token
+
+function isTrustedOrigin(sender) {
+  return sender.origin === `chrome-extension://${chrome.runtime.id}`;
+}
 
 // Purge any leaked session keys from persistent storage (Security Fix)
 chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
@@ -16,7 +21,6 @@ chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   initStatePromise.then(() => {
     switch (message.action) {
-
 
       case 'get-status':
         sendResponse({ unlocked: isUnlocked });
@@ -29,13 +33,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             hostname: message.hostname,
             url: message.url
           });
+          // Generate session token for content script
+          const token = crypto.randomUUID();
+          contentScriptTokens.set(sender.tab.id, token);
+
           // Update badge to show there's a login form on this tab
           if (isUnlocked) {
             updateTabBadge(sender.tab.id, true);
             checkPhishing(sender.tab, message.hostname);
           }
+          sendResponse({ ok: true, token: token });
+        } else {
+          sendResponse({ ok: false });
         }
-        sendResponse({ ok: true });
         break;
 
       case 'check-credentials-exist':
@@ -56,13 +66,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case 'request-autofill':
         // Content script icon was clicked — find matching credentials and autofill
-        if (sender.tab?.id) {
+        if (sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           handleAutoFillRequest(sender.tab, message);
+          sendResponse({ ok: true });
+        } else {
+          sendResponse({ ok: false, error: 'Invalid token' });
         }
-        sendResponse({ ok: true });
         break;
 
       case 'check-login-tab':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         // Popup asks if current tab has a detected login form
         if (message.tabId && detectedLoginTabs.has(message.tabId)) {
           sendResponse({
@@ -76,7 +89,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case 'get-credential':
         // Content script requests a specific credential by ID (after user selection)
-        if (isUnlocked && message.id) {
+        if (isUnlocked && message.id && sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           handleGetCredential(message.id, sendResponse);
           return true; // async response
         } else {
@@ -85,10 +98,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
 
       case 'generate-password':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         sendResponse({ password: generatePassword(16, { upper: true, lower: true, digits: true, symbols: true }) });
         return true;
 
       case 'generate-email-alias':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         chrome.storage.local.get(['deadbolt_settings'], async (res) => {
           try {
             let settings = {};
@@ -122,6 +137,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'get-email-aliases':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         chrome.storage.local.get(['deadbolt_settings'], async (res) => {
           try {
             let settings = {};
@@ -153,6 +169,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'delete-email-alias':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         chrome.storage.local.get(['deadbolt_settings'], async (res) => {
           try {
             let settings = {};
@@ -193,14 +210,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'save-captured-credential':
-        if (sender.tab?.id) {
+        if (sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           pendingSaves.set(sender.tab.id, message.credential);
+          sendResponse({ ok: true });
+        } else {
+          sendResponse({ ok: false, error: 'Invalid token' });
         }
-        sendResponse({ ok: true });
         break;
 
       case 'check-pending-saves':
-        if (sender.tab?.id && pendingSaves.has(sender.tab.id)) {
+        if (sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token && pendingSaves.has(sender.tab.id)) {
           const cred = pendingSaves.get(sender.tab.id);
           pendingSaves.delete(sender.tab.id);
           sendResponse({ credential: cred });
@@ -210,7 +229,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'confirm-save-credential':
-        if (isUnlocked && message.credential) {
+        if (isUnlocked && message.credential && sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           handleSaveCredential(message.credential).then(() => sendResponse({ success: true }));
           return true;
         }
@@ -218,12 +237,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
 
       case 'unlock-vault':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         handleUnlockVault(message.password).then((success) => {
           sendResponse({ success });
         });
         return true;
 
       case 'vault-unlocked':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         isUnlocked = true;
         updateBadge(true);
         resetAutoLock();
@@ -231,11 +252,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
 
       case 'vault-locked':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         lockVault();
         sendResponse({ success: true });
         break;
 
       case 'update-autolock':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         if (message.minutes) {
           autoLockMinutes = message.minutes;
           if (isUnlocked) resetAutoLock();
@@ -244,6 +267,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
 
       case 'update-privacy':
+        if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         updateWebRtcPolicy(message.blockWebRtc);
         updateHttpsEnforcer(message.forceHttps);
         forceHttpsEnabled = !!message.forceHttps;
