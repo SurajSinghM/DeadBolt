@@ -28,7 +28,6 @@
     return /password|passcode|passphrase|secret|email|username|login|usr/i.test(nameOrId);
   }
 
-  // 1. Intercept addEventListener to prevent keylogging
   const originalAddEventListener = HTMLInputElement.prototype.addEventListener;
   HTMLInputElement.prototype.addEventListener = function(type, listener, options) {
     if (isSensitiveInput(this) && ['keydown', 'keypress', 'keyup', 'input', 'change', 'paste'].includes(type)) {
@@ -40,7 +39,6 @@
     return originalAddEventListener.call(this, type, listener, options);
   };
 
-  // 2. Intercept value getter to prevent reading input contents
   const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
   if (originalValueDescriptor) {
     Object.defineProperty(HTMLInputElement.prototype, 'value', {

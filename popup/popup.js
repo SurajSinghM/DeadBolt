@@ -1,12 +1,8 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Core Extension Logic
-   AES-256-GCM encrypted vault with PBKDF2 key derivation
-   ═══════════════════════════════════════════════════ */
+
 
 (() => {
   'use strict';
 
-  // ── Constants ──
   const STORAGE_KEYS = {
     VAULT: 'deadbolt_vault',
     SALT: 'deadbolt_salt',
@@ -17,7 +13,6 @@
   const VERIFY_PHRASE = 'DEADBOLT_VAULT_OK';
   const PBKDF2_ITERATIONS = 100000;
 
-  // ── State ──
   let state = {
     entries: [],
     cryptoKey: null,
@@ -28,10 +23,6 @@
     filterTag: '',
     settings: { autoLockMinutes: 5, forceHttps: false, blockWebRtc: false }
   };
-
-  // ══════════════════════════════════
-  //  CRYPTO UTILITIES (Web Crypto API)
-  // ══════════════════════════════════
 
   function getRandomBytes(length) {
     return crypto.getRandomValues(new Uint8Array(length));
@@ -86,10 +77,6 @@
     return JSON.parse(decoder.decode(decrypted));
   }
 
-  // ══════════════════════════════════
-  //  STORAGE HELPERS
-  // ══════════════════════════════════
-
   function storageGet(keys) {
     return new Promise(resolve => chrome.storage.local.get(keys, resolve));
   }
@@ -113,10 +100,6 @@
   function sessionClear() {
     chrome.storage.session.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
   }
-
-  // ══════════════════════════════════
-  //  VAULT OPERATIONS
-  // ══════════════════════════════════
 
   async function vaultExists() {
     const data = await storageGet([STORAGE_KEYS.VAULT, STORAGE_KEYS.SALT]);
@@ -152,7 +135,6 @@
     const salt = base64ToBuffer(data[STORAGE_KEYS.SALT]);
     const key = await deriveKey(masterPassword, salt);
 
-    // Verify password by decrypting the verification phrase
     const verifyData = JSON.parse(data[STORAGE_KEYS.VERIFY]);
     try {
       const phrase = await decrypt(verifyData.ciphertext, verifyData.iv, key);
@@ -164,14 +146,12 @@
     state.cryptoKey = key;
     state.salt = new Uint8Array(salt);
 
-    // Decrypt vault entries
     if (data[STORAGE_KEYS.VAULT] && data[STORAGE_KEYS.IV]) {
       state.entries = await decrypt(data[STORAGE_KEYS.VAULT], data[STORAGE_KEYS.IV], key);
     } else {
       state.entries = [];
     }
 
-    // Load settings
     if (data[STORAGE_KEYS.SETTINGS]) {
       try { state.settings = JSON.parse(data[STORAGE_KEYS.SETTINGS]); } catch {}
     }
@@ -196,7 +176,7 @@
           hashes.push(hashHex);
         }
       } catch (e) {
-        // Invalid URL, skip
+
       }
     }
     await storageSet({ 'deadbolt_domain_hashes': hashes });
@@ -237,7 +217,7 @@
   }
 
   async function changeMasterPassword(currentPass, newPass) {
-    // Re-derive current key and verify
+
     const data = await storageGet([STORAGE_KEYS.SALT, STORAGE_KEYS.VERIFY]);
     const salt = base64ToBuffer(data[STORAGE_KEYS.SALT]);
     const oldKey = await deriveKey(currentPass, salt);
@@ -250,7 +230,6 @@
       throw new Error('Current password is incorrect');
     }
 
-    // Create new salt + key, re-encrypt everything
     const newSalt = getRandomBytes(32);
     const newKey = await deriveKey(newPass, newSalt);
 
@@ -267,14 +246,9 @@
       [STORAGE_KEYS.VERIFY]: JSON.stringify(newVerify)
     });
 
-    // Update session key so background uses the new key immediately
     await sessionSetKey(state.cryptoKey, state.salt);
     notifyBackground('vault-unlocked');
   }
-
-  // ══════════════════════════════════
-  //  PASSWORD GENERATOR
-  // ══════════════════════════════════
 
   const CHARSETS = {
     upper:   'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -291,7 +265,6 @@
     if (options.symbols) charset += CHARSETS.symbols;
     if (!charset) charset = CHARSETS.lower;
 
-    // Rejection sampling to eliminate modulo bias
     const maxValid = 256 - (256 % charset.length);
     let password = '';
     while (password.length < length) {
@@ -330,14 +303,10 @@
     labelEl.style.color = `var(--strength-${s.level})`;
   }
 
-  // ══════════════════════════════════
-  //  BACKGROUND COMMUNICATION
-  // ══════════════════════════════════
-
   function notifyBackground(action, data = {}) {
     try {
       chrome.runtime.sendMessage({ action, ...data });
-    } catch { /* popup closing */ }
+    } catch {  }
   }
 
   chrome.runtime.onMessage.addListener((msg) => {
@@ -345,10 +314,6 @@
       lockVault();
     }
   });
-
-  // ══════════════════════════════════
-  //  UI UTILITIES
-  // ══════════════════════════════════
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -363,7 +328,6 @@
       screen.style.animation = '';
     }
 
-    // Toggle bottom nav visibility
     const nav = $('#bottom-nav');
     if (['screen-vault', 'screen-generator', 'screen-breach', 'screen-settings'].includes(id)) {
       nav.style.display = 'flex';
@@ -429,10 +393,6 @@
       return '';
     }
   }
-
-  // ══════════════════════════════════
-  //  RENDER ENTRIES LIST
-  // ══════════════════════════════════
 
   function renderEntries(filter = '') {
     const list = $('#entries-list');
@@ -519,7 +479,6 @@
     const folderSelect = $('#filter-folder');
     const tagSelect = $('#filter-tag');
 
-    // Store current values to restore them after rebuild
     const currFolder = folderSelect.value;
     const currTag = tagSelect.value;
 
@@ -529,7 +488,6 @@
     tagSelect.innerHTML = '<option value="">All Tags</option>' + 
       Array.from(tags).sort().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
-    // Restore values
     if (folders.has(currFolder)) {
       folderSelect.value = currFolder;
     } else {
@@ -552,10 +510,6 @@
               .replace(/'/g, '&#039;');
   }
 
-  // ══════════════════════════════════
-  //  AUTO-FILL
-  // ══════════════════════════════════
-
   async function autofillEntry(entryId) {
     const entry = state.entries.find(e => e.id === entryId);
     if (!entry) return;
@@ -575,10 +529,6 @@
       showToast('Cannot auto-fill on this page', 'error');
     }
   }
-
-  // ══════════════════════════════════
-  //  BREACH CHECK (Have I Been Pwned)
-  // ══════════════════════════════════
 
   async function sha1Hash(text) {
     const encoder = new TextEncoder();
@@ -634,7 +584,6 @@
     const resultsEl = $('#breach-results');
     const emptyEl = $('#breach-empty');
 
-    // Reset UI
     shield.className = 'breach-shield scanning';
     scanBtn.style.display = 'none';
     progress.style.display = 'block';
@@ -667,7 +616,6 @@
         errors++;
       }
 
-      // Rate limit: 100ms between API calls
       if (checked < entries.length) {
         await new Promise(r => setTimeout(r, 100));
       }
@@ -737,10 +685,6 @@
     breachResults = [];
   }
 
-  // ══════════════════════════════════
-  //  EXPORT / IMPORT
-  // ══════════════════════════════════
-
   function exportVault() {
     const data = {
       format: 'deadbolt-v1',
@@ -785,7 +729,7 @@
       const existingIds = new Set(state.entries.map(e => e.id));
       let skipped = 0;
       for (const entry of data.entries) {
-        // Skip duplicates if the entry ID already exists in the vault
+
         if (entry.id && existingIds.has(entry.id)) {
           skipped++;
           continue;
@@ -813,13 +757,8 @@
     }
   }
 
-  // ══════════════════════════════════
-  //  EVENT HANDLERS
-  // ══════════════════════════════════
-
   function initEventListeners() {
 
-    // Handle broken favicons securely without inline onerror handlers
     $('#entries-list').addEventListener('error', (e) => {
       if (e.target.tagName.toLowerCase() === 'img') {
         const card = e.target.closest('.entry-card');
@@ -828,7 +767,6 @@
       }
     }, true); // useCapture to catch non-bubbling error events
 
-    // ── Toggle password visibility ──
     $$('.btn-eye').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -841,13 +779,11 @@
       });
     });
 
-    // ── Setup / Onboarding ──
     $('#btn-open-onboarding').addEventListener('click', () => {
       chrome.tabs.create({ url: chrome.runtime.getURL('onboarding/onboarding.html') });
       window.close();
     });
 
-    // ── Login form ──
     $('#form-login').addEventListener('submit', async (e) => {
       e.preventDefault();
       const pass = $('#login-password').value;
@@ -870,10 +806,8 @@
       }
     });
 
-    // ── Lock button ──
     $('#btn-lock').addEventListener('click', lockVault);
 
-    // ── Search ──
     $('#search-input').addEventListener('input', (e) => {
       const val = e.target.value;
       $('#btn-clear-search').style.display = val ? 'flex' : 'none';
@@ -885,7 +819,6 @@
       renderEntries();
     });
 
-    // ── Filters ──
     $('#filter-folder').addEventListener('change', (e) => {
       state.filterFolder = e.target.value;
       renderEntries($('#search-input').value);
@@ -896,7 +829,6 @@
       renderEntries($('#search-input').value);
     });
 
-    // ── Entry list clicks (delegation) ──
     $('#entries-list').addEventListener('click', (e) => {
       const actionBtn = e.target.closest('[data-action]');
       if (actionBtn) {
@@ -924,10 +856,8 @@
       }
     });
 
-    // ── Add entry FAB ──
     $('#btn-add-entry').addEventListener('click', openAddEntry);
 
-    // ── Entry form ──
     $('#btn-back-entry').addEventListener('click', () => {
       state.editingId = null;
       showScreen('screen-vault');
@@ -981,7 +911,6 @@
       showToast('Entry deleted');
     });
 
-    // ── Generate password inside entry form ──
     $('#btn-gen-entry-pass').addEventListener('click', (e) => {
       e.preventDefault();
       state.generatorCallback = (pass) => {
@@ -995,7 +924,6 @@
       generateAndDisplay();
     });
 
-    // ── Generator screen ──
     $('#btn-generator').addEventListener('click', () => {
       state.generatorCallback = null;
       $('#btn-use-gen').style.display = 'none';
@@ -1066,14 +994,12 @@
       }
     });
 
-    // ── Breach check screen ──
     $('#btn-breach').addEventListener('click', () => {
       showScreen('screen-breach');
     });
 
     $('#btn-scan-breach').addEventListener('click', checkBreaches);
 
-    // ── Breach result clicks (edit entry) ──
     $('#breach-results-list').addEventListener('click', (e) => {
       const card = e.target.closest('[data-breach-id]');
       if (card) {
@@ -1081,7 +1007,6 @@
       }
     });
 
-    // ── Settings screen ──
     $('#btn-settings').addEventListener('click', () => {
       $('#setting-autolock').value = state.settings.autoLockMinutes;
       $('#setting-autolock-val').textContent = state.settings.autoLockMinutes + ' min';
@@ -1094,7 +1019,6 @@
       $('#settings-pass-error').textContent = '';
       showScreen('screen-settings');
     });
-
 
     $('#setting-autolock').addEventListener('input', async (e) => {
       const val = parseInt(e.target.value);
@@ -1154,7 +1078,6 @@
       }
     });
 
-    // ── Export / Import ──
     $('#btn-export').addEventListener('click', exportVault);
     $('#btn-import').addEventListener('click', () => $('#import-file').click());
     $('#import-file').addEventListener('change', (e) => {
@@ -1164,7 +1087,6 @@
       }
     });
 
-    // ── Destroy vault ──
     $('#btn-destroy-vault').addEventListener('click', async () => {
       const ok = await confirm(
         '⚠️ Destroy Vault',
@@ -1176,7 +1098,6 @@
     });
   }
 
-  // ── Entry form helpers ──
   function openAddEntry() {
     state.editingId = null;
     $('#entry-form-title').textContent = 'Add Password';
@@ -1190,7 +1111,6 @@
     $('#entry-tags').value = '';
     $('#entry-notes').value = '';
 
-    // Pre-fill URL from current tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.url && tabs[0].url.startsWith('http')) {
         try {
@@ -1311,10 +1231,6 @@
     updateStrengthUI($('#gen-strength'), $('#gen-strength-label'), pass);
   }
 
-  // ══════════════════════════════════
-  //  INITIALIZATION
-  // ══════════════════════════════════
-
   async function init() {
     initEventListeners();
 
@@ -1325,7 +1241,6 @@
       return;
     }
 
-    // Check if session storage has the persistent key
     const sessData = await chrome.storage.session.get(['deadbolt_session_key', 'deadbolt_session_salt']);
     if (sessData.deadbolt_session_key && sessData.deadbolt_session_salt) {
       try {
@@ -1357,11 +1272,10 @@
     }
 
     showScreen('screen-login');
-    // Focus the password field
+
     setTimeout(() => $('#login-password')?.focus(), 100);
   }
 
-  // Start
   document.addEventListener('DOMContentLoaded', init);
 
 })();

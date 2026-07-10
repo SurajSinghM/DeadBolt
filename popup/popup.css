@@ -1,48 +1,45 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Premium Modern UI (Dark Mode)
-   Clean, refined, and deeply polished.
-   ═══════════════════════════════════════════════════ */
+
 
 :root {
-  /* ── Surfaces ── */
+  
   --bg-deep:        #0a0a0f;
   --bg-primary:     #111118;
   --bg-surface:     #18181f;
   --bg-hover:       #1f1f28;
   --bg-elevated:    #1a1a22;
 
-  /* ── Borders ── */
+  
   --border-default: #2a2a35;
   --border-light:   #1e1e28;
   --border-focus:   #e2e8f0;
 
-  /* ── Text ── */
+  
   --text-primary:   #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted:     #64748b;
   --text-inverse:   #0a0a0f;
 
-  /* ── Accent ── */
+  
   --accent:         #e2e8f0;
   --accent-hover:   #f8fafc;
   --accent-light:   rgba(226, 232, 240, 0.08);
   --accent-glow:    rgba(226, 232, 240, 0.12);
 
-  /* ── Semantic ── */
+  
   --success:        #34d399;
   --warning:        #fbbf24;
   --danger:         #f87171;
   --danger-bg:      rgba(248, 113, 113, 0.1);
   --danger-bg-hover:rgba(248, 113, 113, 0.2);
 
-  /* ── Shadows ── */
+  
   --shadow-xs:   0 1px 2px rgba(0,0,0,0.3);
   --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md:   0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
   --shadow-lg:   0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
   --shadow-fab:  0 6px 24px rgba(0, 0, 0, 0.5);
 
-  /* ── Geometry ── */
+  
   --radius-xs:   6px;
   --radius-sm:   8px;
   --radius-md:   12px;
@@ -50,15 +47,14 @@
   --radius-xl:   20px;
   --radius-full: 999px;
 
-  /* ── Typography ── */
+  
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* ── Layout ── */
+  
   --header-height: 120px;
   --nav-height: 56px;
 }
 
-/* ── Reset ── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -84,10 +80,6 @@ body {
   flex-direction: column;
 }
 
-/* ════════════════════════════════════
-   SCREENS & TRANSITIONS
-   ════════════════════════════════════ */
-
 .screen {
   position: absolute;
   inset: 0;
@@ -105,10 +97,6 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ════════════════════════════════════
-   SCROLLBARS
-   ════════════════════════════════════ */
-
 .scroll-content {
   flex: 1;
   overflow-y: auto;
@@ -125,10 +113,6 @@ body {
 .list-content { padding: 12px 16px 16px; }
 .padded-content { padding: 20px 24px; }
 .pb-xl { padding-bottom: 80px; }
-
-/* ════════════════════════════════════
-   AUTH SCREENS (Setup / Login)
-   ════════════════════════════════════ */
 
 .auth-wrapper {
   display: flex;
@@ -174,10 +158,6 @@ body {
 .entry-form {
   padding-bottom: 80px;
 }
-
-/* ════════════════════════════════════
-   INPUTS
-   ════════════════════════════════════ */
 
 .input-group { margin-bottom: 14px; }
 .input-group label {
@@ -233,10 +213,6 @@ textarea {
 }
 .btn-eye svg, .btn-gen-inline svg { width: 17px; height: 17px; }
 .btn-gen-inline { right: 38px; }
-
-/* ════════════════════════════════════
-   BUTTONS
-   ════════════════════════════════════ */
 
 button {
   font-family: inherit;
@@ -310,10 +286,6 @@ button {
   color: var(--danger);
 }
 
-/* ════════════════════════════════════
-   HEADERS
-   ════════════════════════════════════ */
-
 .app-header {
   padding: 16px 20px 14px;
   background: var(--bg-primary);
@@ -371,10 +343,6 @@ button {
 }
 .btn-lock svg { width: 15px; height: 15px; }
 
-/* ════════════════════════════════════
-   SEARCH
-   ════════════════════════════════════ */
-
 .search-container { position: relative; width: 100%; }
 .search-icon {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -414,10 +382,6 @@ button {
 }
 .btn-clear-search svg { width: 12px; height: 12px; }
 
-/* ════════════════════════════════════
-   FILTER BAR
-   ════════════════════════════════════ */
-
 .filter-container {
   display: flex;
   gap: 8px;
@@ -437,10 +401,6 @@ button {
 .filter-select:focus {
   border-color: var(--border-focus);
 }
-
-/* ════════════════════════════════════
-   VAULT ENTRY CARDS
-   ════════════════════════════════════ */
 
 .entries-list {
   display: flex;
@@ -555,7 +515,6 @@ button {
 }
 .btn-action svg { width: 14px; height: 14px; }
 
-/* ── Empty State ── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -583,10 +542,6 @@ button {
   color: var(--text-muted);
   font-weight: 400;
 }
-
-/* ════════════════════════════════════
-   FAB (Floating Action Button)
-   ════════════════════════════════════ */
 
 .fab {
   position: absolute;
@@ -625,10 +580,6 @@ button {
 }
 .fab svg { width: 22px; height: 22px; }
 
-/* ════════════════════════════════════
-   BOTTOM NAVIGATION
-   ════════════════════════════════════ */
-
 .bottom-nav {
   position: absolute; bottom: 0; left: 0; right: 0;
   height: var(--nav-height);
@@ -651,7 +602,6 @@ button {
 .nav-item:hover { color: var(--text-secondary); }
 .nav-item.active { color: var(--accent); }
 
-/* Active indicator dot */
 .nav-item.active::after {
   content: '';
   position: absolute;
@@ -667,10 +617,6 @@ button {
   font-weight: 600;
   letter-spacing: 0.2px;
 }
-
-/* ════════════════════════════════════
-   SETTINGS & GENERATOR
-   ════════════════════════════════════ */
 
 .settings-section { margin-bottom: 20px; }
 .settings-section h3 {
@@ -709,7 +655,6 @@ button {
   color: var(--danger);
 }
 
-/* ── Generator Card ── */
 .gen-card {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -736,7 +681,6 @@ button {
 }
 .gen-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-/* ── Range Slider ── */
 .gen-control {
   display: flex;
   align-items: center;
@@ -775,7 +719,6 @@ button {
   box-shadow: var(--shadow-md);
 }
 
-/* ── Toggle Switches ── */
 .toggle-row {
   display: flex;
   justify-content: space-between;
@@ -817,10 +760,6 @@ button {
   transform: translateX(16px);
 }
 
-/* ════════════════════════════════════
-   STRENGTH BAR
-   ════════════════════════════════════ */
-
 .strength-bar {
   height: 3px;
   background: var(--border-default);
@@ -841,10 +780,6 @@ button {
   color: var(--text-muted);
 }
 
-/* ════════════════════════════════════
-   ERROR MESSAGE
-   ════════════════════════════════════ */
-
 .error-msg {
   color: var(--danger);
   font-size: 12px;
@@ -852,10 +787,6 @@ button {
   min-height: 16px;
   margin-bottom: 10px;
 }
-
-/* ════════════════════════════════════
-   TOAST NOTIFICATION
-   ════════════════════════════════════ */
 
 .toast {
   position: absolute;
@@ -879,10 +810,6 @@ button {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-
-/* ════════════════════════════════════
-   CONFIRM DIALOG (Modal)
-   ════════════════════════════════════ */
 
 .confirm-overlay {
   position: absolute;
@@ -940,20 +867,12 @@ button {
   font-size: 13px;
 }
 
-/* ════════════════════════════════════
-   STRENGTH VARIABLES (used by JS)
-   ════════════════════════════════════ */
-
 :root {
   --strength-weak:   #f87171;
   --strength-fair:   #fbbf24;
   --strength-good:   #34d399;
   --strength-strong: #22d3ee;
 }
-
-/* ════════════════════════════════════
-   BREACH CHECK SCREEN
-   ════════════════════════════════════ */
 
 .breach-summary-card {
   background: var(--bg-primary);
@@ -1010,7 +929,6 @@ button {
   line-height: 1.4;
 }
 
-/* Progress bar */
 .breach-progress {
   margin-top: 16px;
 }
@@ -1034,7 +952,6 @@ button {
   color: var(--text-muted);
 }
 
-/* Results */
 .breach-results-heading {
   font-size: 11px;
   font-weight: 700;
@@ -1120,7 +1037,6 @@ button {
   border: 1px solid rgba(248, 113, 113, 0.12);
 }
 
-/* Empty / All Clear */
 .breach-empty {
   display: flex;
   flex-direction: column;

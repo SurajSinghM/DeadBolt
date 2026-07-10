@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const error = document.getElementById('error-msg');
   const btn = document.getElementById('unlock-btn');
 
-  // Focus the input immediately
   input.focus();
 
   form.addEventListener('submit', (e) => {
@@ -18,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chrome.runtime.sendMessage({ action: 'unlock-vault', password: pw }, (res) => {
       if (res && res.success) {
-        // Send a success message to the parent window (the content script)
+
         window.parent.postMessage({ type: 'DEADBOLT_UNLOCKED' }, '*');
       } else {
         btn.textContent = 'Unlock';
@@ -30,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Allow clicking outside the container to dismiss it
   document.addEventListener('click', (e) => {
     if (e.target === document.body) {
       window.parent.postMessage({ type: 'DEADBOLT_DISMISS_UNLOCK' }, '*');

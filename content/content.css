@@ -1,12 +1,5 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Content Script Styles
-   Minimal styles for the host element.
-   The icon button itself is styled inside Shadow DOM
-   for full isolation from page styles
-   (mirrors Proton Pass ProtonPassControl approach).
-   ═══════════════════════════════════════════════════ */
 
-/* Host element — zero-footprint insertion */
+
 deadbolt-icon {
   margin-left: unset;
   padding: 0 !important;
@@ -28,9 +21,9 @@ deadbolt-icon {
   width: 0 !important;
   float: left !important;
   animation: none !important;
-  /* Flex container compat */
+  
   flex: 0 0 0;
-  /* Grid container compat */
+  
   grid-row: auto / span 1 !important;
   grid-column: auto / span 1 !important;
   display: block !important;

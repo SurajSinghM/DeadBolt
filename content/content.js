@@ -1,24 +1,13 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Content Script
-   Advanced login form detection & auto-fill engine
-   Inspired by Proton Pass orchestrator architecture:
-   - ML-style form classification (LOGIN, REGISTER, RECOVERY, etc.)
-   - Multilingual regex field detection
-   - Shadow DOM icon injection (style-resistant)
-   - MutationObserver for SPA support
-   - Native input value setter for framework compatibility
-   ═══════════════════════════════════════════════════ */
+
 
 (() => {
   'use strict';
 
-  // Prevent double-injection
   if (window.__deadboltInjected) return;
   window.__deadboltInjected = true;
 
   let sessionActionToken = null;
 
-  // Security: Earliest-possible capture listener to prevent global keyloggers from intercepting master password
   ['keydown', 'keypress', 'keyup', 'input', 'beforeinput', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(evt => {
     window.addEventListener(evt, (e) => {
       if (e.composed && e.composedPath) {
@@ -30,14 +19,6 @@
       }
     }, true);
   });
-
-  // ── Keystroke Spyware & Session Replay Blocker ──
-  // Moved to blocker.js to avoid CSP violations with inline scripts
-
-  // ══════════════════════════════════
-  //  FORM TYPE CLASSIFICATION
-  //  (Mirrors Proton Pass FormType enum)
-  // ══════════════════════════════════
 
   const FormType = {
     LOGIN: 'login',
@@ -56,74 +37,48 @@
     OTP: 'otp'
   };
 
-  // ══════════════════════════════════
-  //  MULTILINGUAL REGEX PATTERNS
-  //  (Derived from Proton Pass orchestrator)
-  // ══════════════════════════════════
-
   const RE = {
-    // Password-related terms (multi-language)
+
     PASSWORD: /p(?:hrasesecrete|ass(?:(?:phras|cod)e|wor[dt]))|(?:c(?:havesecret|lavesecret|ontrasen)|deseguranc)a|(?:(?:zugangs|secret)cod|clesecret)e|wachtwoord|codesecret|motdepasse|geheimnis|secret|heslo|senha|key/i,
 
-    // Username-related terms
     USERNAME: /gebruikersnaam|(?:identifi(?:cado|e)|benutze)r|identi(?:fiant|ty)|u(?:tilisateur|s(?:ername|uario))|(?:screen|nick)name|nutzername|(?:anmeld|handl)e|pseudo/i,
 
-    // Email-related terms
     EMAIL: /co(?:urriel|rrei?o)|email/i,
 
-    // Confirm / re-type patterns
     CONFIRM: /digitarnovamente|v(?:olveraescribi|erifi(?:ca|e))r|saisiranouveau|(?:erneuteingeb|wiederhol|bestatig)en|verif(?:izieren|y)|re(?:pe(?:t[ei]r|at)|type)|confirm|again/i,
 
-    // Second field indicator
     SECOND: /\b\S*(?:snd|bis|2)\b/i,
 
-    // 2FA / OTP patterns
     MFA: /(?:doublefacteu|(?:doblefac|zweifak|twofac)to)r|verifica(?:c(?:ion|ao)|tion)|multifa(?:ct(?:eu|o)|k?to)r|(?:securitycod|doubleetap|authcod)e|zweischritte|dois(?:fatore|passo)s|doblepaso|2(?:s(?:chritte|tep)|(?:etap[ae]|paso)s|fa)|twostep/i,
     OTP: /(?:authentication|approvals|email|login)code|phoneverification|challenge|t(?:wo(?:fa(?:ctor)?|step)|facode)|2fa|\b([mt]fa)\b/i,
     OTP_TOKEN: /totp(?:pin)?|o(?:netime|t[cp])|1time/i,
 
-    // Recovery / forgot password
     RECOVERY: /schwierigkeit|(?:difficult|troubl|oubli|hilf)e|i(?:nciden(?:cia|t)|ssue)|vergessen|esquecido|olvidado|needhelp|questao|problem|forgot|ayuda/i,
 
-    // Progress / step indicators
     STEP: /p(?:rogres(?:s(?:ion|o)|o)|aso)|fortschritt|progress|s(?:chritt|t(?:age|ep))|etap[ae]|phase/i,
 
-    // Newsletter / marketing (to ignore)
     NEWSLETTER: /newsletter|b(?:ul|o)letin|mailing/i,
 
-    // Register / sign-up page indicators
     REGISTER: /regist(?:ration|er|rieren)|anmeld(?:en|ung)|s(?:ubscri(?:be|ption)|ign.?up|crivers|inscrire)|inscription|create.?account|new.?account|open.?account|join|enroll/i,
 
-    // Login / sign-in page indicators
     LOGIN: /log.?(?:in|on)|sign.?in|anmelden|einloggen|iniciar.?ses|connexion|enter|authenticate|auth/i,
 
-    // Credit card (to exclude)
     CREDIT_CARD: /(?:payments?|new)card|c(?:ar(?:tecredit|d)|red(?:it(?:debit|card)|card))|stripe|vads/i,
 
-    // Search fields (to exclude)
     SEARCH: /search|busca|cherch|suche|zoek|szuk|recherch/i
   };
-
-  // ══════════════════════════════════
-  //  VISIBILITY & DOM UTILITIES
-  //  (Mirrors Proton Pass isVisible)
-  // ══════════════════════════════════
 
   function isVisible(el) {
     if (!el) return false;
     const style = window.getComputedStyle(el);
     const rect = el.getBoundingClientRect();
 
-    // Check computed styles
     if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
 
-    // Check dimensions
     if (rect.width === 0 && rect.height === 0 && style.overflow === 'hidden') return false;
 
-    // Check if off-screen
     if (rect.x + rect.width < 0 || rect.y + rect.height < 0) return false;
 
-    // Check ancestors for opacity: 0 or display: none
     let parent = el.parentElement;
     while (parent) {
       const ps = window.getComputedStyle(parent);
@@ -141,7 +96,6 @@
            !isVisible(el);
   }
 
-  // Get attributes for matching — concatenate name, id, placeholder, autocomplete, aria-label, label text
   function getFieldFingerprint(field) {
     const parts = [
       field.name || '',
@@ -153,85 +107,62 @@
       field.className || ''
     ];
 
-    // Check for associated <label>
     if (field.id) {
       const label = field.ownerDocument.querySelector(`label[for="${field.id}"]`);
       if (label) parts.push(label.textContent || '');
     }
 
-    // Check for wrapping <label>
     const wrappingLabel = field.closest('label');
     if (wrappingLabel) parts.push(wrappingLabel.textContent || '');
 
     return parts.map(s => s.trim().toLowerCase().replace(/\s+/g, '')).join('|');
   }
 
-  // ══════════════════════════════════
-  //  FIELD CLASSIFICATION
-  //  (Mirrors Proton Pass FieldType detection)
-  // ══════════════════════════════════
-
   function classifyField(field) {
     const type = (field.type || '').toLowerCase();
     const fingerprint = getFieldFingerprint(field);
     const autocomplete = (field.autocomplete || '').toLowerCase();
 
-    // Explicit type=password
     if (type === 'password') {
-      // Is it a "new" password or "current" password?
+
       if (autocomplete === 'new-password' || RE.CONFIRM.test(fingerprint) || RE.SECOND.test(fingerprint)) {
         return FieldType.PASSWORD_NEW;
       }
       return FieldType.PASSWORD_CURRENT;
     }
 
-    // Skip search fields
     if (type === 'search' || RE.SEARCH.test(fingerprint)) return null;
 
-    // Skip credit card fields
     if (RE.CREDIT_CARD.test(fingerprint)) return null;
 
-    // Skip newsletter/subscription checkboxes
     if (RE.NEWSLETTER.test(fingerprint)) return null;
 
-    // Skip file, button, submit, reset, checkbox, radio, image, hidden, range, color
     if (['file', 'button', 'submit', 'reset', 'checkbox', 'radio', 'image', 'hidden', 'range', 'color', 'date', 'datetime-local', 'month', 'week', 'time'].includes(type)) {
       return null;
     }
 
-    // Explicit autocomplete hints
     if (autocomplete === 'username' || autocomplete === 'email') return FieldType.EMAIL;
     if (autocomplete === 'one-time-code') return FieldType.OTP;
 
-    // OTP detection
     if (RE.OTP.test(fingerprint) || RE.OTP_TOKEN.test(fingerprint) || RE.MFA.test(fingerprint)) {
       return FieldType.OTP;
     }
 
-    // Email detection
     if (type === 'email' || RE.EMAIL.test(fingerprint)) return FieldType.EMAIL;
 
-    // Username detection
     if (RE.USERNAME.test(fingerprint)) return FieldType.USERNAME;
 
-    // tel type might be phone/sms for OTP
     if (type === 'tel') {
       if (RE.OTP.test(fingerprint) || RE.MFA.test(fingerprint)) return FieldType.OTP;
       return null;
     }
 
-    // Text or untyped inputs near a password field are likely usernames
     if (type === 'text' || type === '') {
       return FieldType.USERNAME;
     }
 
     return null;
   }
-
-  // ══════════════════════════════════
-  //  FORM CLASSIFICATION
-  //  (Mirrors Proton Pass FormType detection)
-  // ══════════════════════════════════
 
   function classifyForm(form, fields) {
     const passwordFields = fields.filter(f => f.fieldType === FieldType.PASSWORD_CURRENT || f.fieldType === FieldType.PASSWORD_NEW);
@@ -240,44 +171,36 @@
     const usernameFields = fields.filter(f => f.fieldType === FieldType.EMAIL || f.fieldType === FieldType.USERNAME);
     const otpFields = fields.filter(f => f.fieldType === FieldType.OTP);
 
-    // If no password and no username fields, it's not an auth form
     if (passwordFields.length === 0 && usernameFields.length === 0 && otpFields.length === 0) {
       return FormType.NOOP;
     }
 
-    // Get page-level context clues
     const pageText = (document.title + ' ' + window.location.href).toLowerCase();
     const formFingerprint = form ? getFormFingerprint(form) : '';
 
-    // Recovery form — no password, has username, page mentions forgot/trouble
     if (passwordFields.length === 0 && usernameFields.length > 0 && otpFields.length === 0) {
       if (RE.RECOVERY.test(pageText) || RE.RECOVERY.test(formFingerprint)) {
         return FormType.RECOVERY;
       }
     }
 
-    // OTP-only form
     if (otpFields.length > 0 && passwordFields.length === 0) {
       return FormType.NOOP; // Not a form we fill with username/password
     }
 
-    // Register: has new-password fields, or multiple password fields (password + confirm), or page says "register"
     if (newPasswords.length > 0 || passwordFields.length >= 2 ||
         RE.REGISTER.test(pageText) || RE.REGISTER.test(formFingerprint)) {
       return FormType.REGISTER;
     }
 
-    // Password change: multiple password fields with current + new
     if (currentPasswords.length >= 1 && passwordFields.length >= 2) {
       return FormType.PASSWORD_CHANGE;
     }
 
-    // Login: has a password and a username/email field (or just a password)
     if (passwordFields.length >= 1) {
       return FormType.LOGIN;
     }
 
-    // Username-only (first step of multi-step login)
     if (usernameFields.length > 0) {
       if (RE.LOGIN.test(pageText) || RE.LOGIN.test(formFingerprint)) {
         return FormType.LOGIN;
@@ -297,15 +220,9 @@
     ].join('|').toLowerCase();
   }
 
-  // ══════════════════════════════════
-  //  FORM DETECTION ENGINE
-  //  Scans the DOM for login/register forms
-  // ══════════════════════════════════
-
   function detectForms() {
     const detectedForms = [];
 
-    // Strategy 1: Find all <form> elements containing password or username fields
     const forms = document.querySelectorAll('form');
     const processedInputs = new Set();
 
@@ -330,7 +247,6 @@
       }
     });
 
-    // Strategy 2: Find orphan password/username inputs not inside a <form>
     const allInputs = document.querySelectorAll('input');
     const orphanFields = [];
 
@@ -344,7 +260,7 @@
     });
 
     if (orphanFields.length > 0) {
-      // Group orphan fields by proximity (common ancestor container)
+
       const groups = groupOrphanFields(orphanFields);
       groups.forEach(group => {
         const formType = classifyForm(null, group);
@@ -360,7 +276,6 @@
   function groupOrphanFields(fields) {
     if (fields.length <= 1) return [fields];
 
-    // Group by closest common container (div, section, etc.)
     const groups = [];
     const used = new Set();
 
@@ -370,7 +285,6 @@
       const group = [field];
       used.add(field);
 
-      // Find nearby fields (within a reasonable DOM distance)
       const container = findFormLikeContainer(field.element);
       if (container) {
         fields.forEach(other => {
@@ -393,12 +307,12 @@
     let depth = 0;
     while (current && depth < 8) {
       const tag = current.tagName;
-      // Stop at common container elements
+
       if (['SECTION', 'MAIN', 'ARTICLE', 'BODY'].includes(tag)) return current;
-      // Check if it looks like a form container
+
       const role = current.getAttribute('role');
       if (role === 'form' || role === 'dialog' || role === 'main') return current;
-      // DIVs with form-like classes
+
       const cls = (current.className || '').toLowerCase();
       if (/form|login|auth|sign|modal|card|panel|container/i.test(cls)) return current;
       current = current.parentElement;
@@ -406,13 +320,6 @@
     }
     return current || el.parentElement;
   }
-
-  // ══════════════════════════════════
-  //  SHADOW DOM ICON INJECTION
-  //  (Mirrors Proton Pass ProtonPassControl custom element)
-  //  Injects a DeadBolt icon inside password/username fields
-  //  using Shadow DOM to resist external style overrides
-  // ══════════════════════════════════
 
   const injectedFields = new WeakSet();
   let activeDropdownHost = null;
@@ -454,7 +361,6 @@
 
   const trackedFields = new Map();
 
-  // 4. Global DOM Observer for SPA Route Changes and Re-renders
   const disappearanceObserver = new MutationObserver(() => {
     if (trackedFields.size === 0) return;
     for (const [pwEl, state] of trackedFields.entries()) {
@@ -485,8 +391,6 @@
     if (pwEl.hasAttribute('data-deadbolt-tracked')) return;
     pwEl.setAttribute('data-deadbolt-tracked', 'true');
 
-    // Keep track of values as they type, because when the element is removed/hidden,
-    // we might not be able to read its value anymore.
     const state = { username: '', password: '', isSubmitted: false };
     
     const updateState = () => {
@@ -499,14 +403,12 @@
 
     trackedFields.set(pwEl, state);
 
-    // 1. Traditional Submit (if it is a form)
     const form = pwEl.closest('form');
     if (form && !form.hasAttribute('data-deadbolt-listener')) {
       form.setAttribute('data-deadbolt-listener', 'true');
       form.addEventListener('submit', () => triggerSave(pwEl, state));
     }
 
-    // 2. Button Interception (for SPAs)
     const container = findFormLikeContainer(pwEl);
     if (container && !container.hasAttribute('data-deadbolt-btn-listener')) {
       container.setAttribute('data-deadbolt-btn-listener', 'true');
@@ -514,14 +416,12 @@
         if (!e.isTrusted) return;
         const btn = e.target.closest('button, input[type="submit"], input[type="button"], [role="button"]');
         if (btn && state.password) {
-          // If a button is clicked, we wait a moment to see if the DOM changes.
-          // If it's a login button, the password field should disappear shortly.
+
           setTimeout(() => checkDisappearance(pwEl, state), 100);
         }
       });
     }
 
-    // 3. Enter Key Interception
     const onEnter = (e) => {
       if (e.key === 'Enter' && state.password) {
         setTimeout(() => checkDisappearance(pwEl, state), 100);
@@ -533,8 +433,7 @@
 
   function checkDisappearance(pwEl, state) {
     if (state.isSubmitted || !state.password) return;
-    
-    // Check if the password field is removed from the DOM or hidden
+
     if (!document.body.contains(pwEl) || !isVisible(pwEl)) {
       triggerSave(pwEl, state);
     }
@@ -563,15 +462,14 @@
   }
 
   function injectFieldIcon(field, formType) {
-    // Create a shadow DOM host element (like Proton Pass's custom elements)
+
     const host = document.createElement('deadbolt-icon');
     const shadow = host.attachShadow({ mode: 'closed' });
 
-    // Shadow DOM CSS — completely isolated from page styles
     const style = document.createElement('style');
     style.textContent = `
       :host {
-        /* ... handled inline by js ... */
+        
       }
       button {
         pointer-events: all;
@@ -615,7 +513,6 @@
     shadow.appendChild(style);
     shadow.appendChild(button);
 
-    // We will append the host to the body to avoid interfering with the site's layout
     host.style.position = 'absolute';
     host.style.top = '0';
     host.style.left = '0';
@@ -630,7 +527,6 @@
     button.style.width = size + 'px';
     button.style.height = size + 'px';
 
-    // Position the icon using absolute document coordinates
     const positionIcon = () => {
       const rect = field.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return; // Hidden field
@@ -641,7 +537,6 @@
       button.style.left = (absoluteLeft + rect.width - size - 10) + 'px';
       button.style.top = (absoluteTop + rect.height / 2) + 'px';
 
-      // Inject padding into the field so text doesn't overlap the icon
       const computedStyle = window.getComputedStyle(field);
       const computedPadding = parseInt(computedStyle.paddingRight || '0', 10);
       if (computedPadding < size + 16) {
@@ -651,19 +546,15 @@
       requestAnimationFrame(() => button.classList.add('visible'));
     };
 
-    // Append to body instead of field sibling
     document.body.appendChild(host);
     positionIcon();
 
-    // Re-position on resize and scroll to keep it glued to the field
     const resizeObserver = new ResizeObserver(positionIcon);
     resizeObserver.observe(field);
     window.addEventListener('resize', positionIcon, { passive: true });
-    // Note: Scroll events on window might not catch scrollable containers.
-    // An IntersectionObserver or periodic check could be used, but scroll + resize covers most.
+
     window.addEventListener('scroll', positionIcon, { passive: true, capture: true });
 
-    // Click handler: attempt to find matching credentials and fill
     button.addEventListener('click', (e) => {
       if (!e.isTrusted) return;
       e.preventDefault();
@@ -672,7 +563,6 @@
       lastClickedField = field;
       lastClickedFormType = formType;
 
-      // Send message to background to check for matching credentials
       chrome.runtime.sendMessage({
         action: 'request-autofill',
         token: sessionActionToken,
@@ -682,13 +572,11 @@
       });
     });
 
-    // Also listen for focusin to show/hide
     field.addEventListener('focus', () => button.classList.add('visible'));
     field.addEventListener('blur', () => {
       setTimeout(() => button.classList.remove('visible'), 200);
     });
 
-    // Start hidden, show on hover over parent or focus
     button.classList.remove('visible');
     const parentNode = field.parentElement;
     if (parentNode) {
@@ -698,10 +586,6 @@
       });
     }
   }
-
-  // ══════════════════════════════════
-  //  MULTI-ACCOUNT DROPDOWN
-  // ══════════════════════════════════
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -801,8 +685,7 @@
         if (!e.isTrusted) return;
         e.preventDefault();
         e.stopPropagation();
-        
-        // Fetch full credential from background
+
         chrome.runtime.sendMessage({ action: 'get-credential', id: cred.id, token: sessionActionToken }, (response) => {
           if (response) {
             performAutofill(response.username, response.password);
@@ -844,16 +727,14 @@
     shadow.appendChild(style);
     shadow.appendChild(container);
 
-    // Position it under the anchorField
     const parent = anchorField.parentElement;
     if (parent) {
       anchorField.insertAdjacentElement('afterend', host);
-      
-      // Calculate absolute positioning relative to anchorField
+
       host.style.position = 'absolute';
       
       const anchorRect = anchorField.getBoundingClientRect();
-      // Dropdown appears right below the field, aligned to its left edge
+
       container.style.top = (anchorField.offsetTop + anchorRect.height + 4) + 'px';
       container.style.left = anchorField.offsetLeft + 'px';
 
@@ -862,7 +743,6 @@
     }
   }
 
-  // Close dropdown on click outside
   document.addEventListener('click', (e) => {
     if (activeDropdownHost) {
       const path = e.composedPath();
@@ -872,10 +752,6 @@
       }
     }
   });
-
-  // ══════════════════════════════════
-  //  SAVE PROMPT UI
-  // ══════════════════════════════════
 
   function renderSavePrompt(credential) {
     if (!credential) return;
@@ -955,10 +831,6 @@
     document.body.appendChild(host);
   }
 
-  // ══════════════════════════════════
-  //  VAULT UNLOCK PROMPT UI
-  // ══════════════════════════════════
-
   function renderUnlockPrompt(anchorField) {
     if (activeDropdownHost) activeDropdownHost.remove();
     
@@ -981,17 +853,15 @@
       const anchorRect = anchorField.getBoundingClientRect();
       host.style.top = (anchorField.offsetTop + anchorRect.height + 4) + 'px';
       activeDropdownHost = host;
-      
-      // Attempt to transfer focus to the iframe so its internal autofocus works
+
       requestAnimationFrame(() => {
         host.focus();
       });
     }
   }
 
-  // Handle messages from the extension iframe
   window.addEventListener('message', (e) => {
-    // Verify origin matches the extension
+
     if (e.origin !== chrome.runtime.getURL('').replace(/\/$/, '')) return;
 
     if (e.data?.type === 'DEADBOLT_UNLOCKED') {
@@ -999,8 +869,7 @@
         activeDropdownHost.remove();
         activeDropdownHost = null;
       }
-      
-      // Retry the original autofill request
+
       if (lastClickedField) {
         chrome.runtime.sendMessage({
           action: 'request-autofill',
@@ -1018,17 +887,10 @@
     }
   });
 
-  // ══════════════════════════════════
-  //  AUTO-FILL ENGINE
-  //  Fills detected fields using native value setters
-  //  (Framework-compatible: React, Vue, Angular, etc.)
-  // ══════════════════════════════════
-
   function performAutofill(username, password) {
     const forms = detectForms();
     let filled = false;
 
-    // Prefer LOGIN forms for auto-fill
     const loginForms = forms.filter(f => f.formType === FormType.LOGIN);
     const targetForms = loginForms.length > 0 ? loginForms : forms;
 
@@ -1056,7 +918,6 @@
       if (filled) break;
     }
 
-    // Fallback: if no classified form found, try raw field detection
     if (!filled) {
       const passwordFields = Array.from(document.querySelectorAll('input[type="password"]')).filter(f => isVisible(f));
       if (passwordFields.length > 0 && password) {
@@ -1064,7 +925,6 @@
         flashField(passwordFields[0]);
         filled = true;
 
-        // Find adjacent username field
         if (username) {
           const usernameInput = findAdjacentUsernameField(passwordFields[0]);
           if (usernameInput) {
@@ -1085,7 +945,6 @@
       'input[type="text"], input[type="email"], input[type="tel"], input:not([type])'
     )).filter(isVisible);
 
-    // Find the input that appears just before the password field in DOM order
     for (let i = inputs.length - 1; i >= 0; i--) {
       const input = inputs[i];
       if (passwordField.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_PRECEDING) {
@@ -1096,13 +955,10 @@
     return inputs[0] || null;
   }
 
-  // Native input value setter — compatible with React, Vue, Angular
-  // (Mirrors Proton Pass's approach)
   function fillField(field, value) {
-    // Focus the field first
+
     field.focus();
 
-    // Use native descriptor to bypass framework getters/setters
     const nativeSetter = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype, 'value'
     )?.set;
@@ -1113,7 +969,6 @@
       field.value = value;
     }
 
-    // Dispatch full event sequence to trigger framework change detection
     field.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     field.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
     field.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Unidentified' }));
@@ -1136,10 +991,6 @@
       setTimeout(() => { field.style.transition = originalTransition; }, 300);
     }, 1500);
   }
-
-  // ══════════════════════════════════
-  //  PHISHING BLOCKER UI
-  // ══════════════════════════════════
 
   function renderPhishingBlocker(suspiciousDomain, safeDomain) {
     const host = document.createElement('div');
@@ -1226,11 +1077,6 @@
     });
   }
 
-  // ══════════════════════════════════
-  //  MESSAGE HANDLING
-  //  Listens for commands from popup & background
-  // ══════════════════════════════════
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     switch (message.action) {
       case 'autofill': {
@@ -1259,7 +1105,7 @@
       }
 
       case 'detect-forms': {
-        // Return detected form info for the popup to show matching entries
+
         const forms = detectForms();
         const formInfo = forms.map(f => ({
           formType: f.formType,
@@ -1273,7 +1119,7 @@
       }
 
       case 'highlight-fields': {
-        // Debug: highlight all detected fields
+
         const forms = detectForms();
         forms.forEach(({ fields }) => {
           fields.forEach(({ element, fieldType }) => {
@@ -1290,12 +1136,6 @@
       }
     }
   });
-
-  // ══════════════════════════════════
-  //  MUTATION OBSERVER
-  //  Watches for dynamically added forms (SPA support)
-  //  (Mirrors Proton Pass orchestrator pattern)
-  // ══════════════════════════════════
 
   let scanTimer = null;
   const SCAN_DEBOUNCE = 800; // ms
@@ -1314,7 +1154,7 @@
           }, (res) => {
             if (res && res.token) sessionActionToken = res.token;
           });
-        } catch { /* Extension context invalidated */ }
+        } catch {  }
       }
     }, SCAN_DEBOUNCE);
   }
@@ -1331,7 +1171,7 @@
         }, (res) => {
           if (res && res.token) sessionActionToken = res.token;
         });
-      } catch { /* Extension context invalidated */ }
+      } catch {  }
     }
   }
 

@@ -1,9 +1,4 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Background Service Worker
-   Manages badge state, message routing,
-   and login form detection notifications
-   (Mirrors Proton Pass background architecture)
-   ═══════════════════════════════════════════════════ */
+
 
 let isUnlocked = false;
 const detectedLoginTabs = new Map();
@@ -14,10 +9,8 @@ function isTrustedOrigin(sender) {
   return sender.origin === `chrome-extension://${chrome.runtime.id}`;
 }
 
-// Purge any leaked session keys from persistent storage (Security Fix)
 chrome.storage.local.remove(['deadbolt_session_key', 'deadbolt_session_salt']);
 
-// ── Listen for messages from popup & content scripts ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   initStatePromise.then(() => {
     switch (message.action) {
@@ -27,17 +20,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'login-form-detected':
-        // Content script detected a login form on the page
+
         if (sender.tab?.id) {
           detectedLoginTabs.set(sender.tab.id, {
             hostname: message.hostname,
             url: message.url
           });
-          // Generate session token for content script
+
           const token = crypto.randomUUID();
           contentScriptTokens.set(sender.tab.id, token);
 
-          // Update badge to show there's a login form on this tab
           if (isUnlocked) {
             updateTabBadge(sender.tab.id, true);
             checkPhishing(sender.tab, message.hostname);
@@ -65,7 +57,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'request-autofill':
-        // Content script icon was clicked — find matching credentials and autofill
+
         if (sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           handleAutoFillRequest(sender.tab, message);
           sendResponse({ ok: true });
@@ -76,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       case 'check-login-tab':
         if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
-        // Popup asks if current tab has a detected login form
+
         if (message.tabId && detectedLoginTabs.has(message.tabId)) {
           sendResponse({
             hasLogin: true,
@@ -88,7 +80,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
 
       case 'get-credential':
-        // Content script requests a specific credential by ID (after user selection)
+
         if (isUnlocked && message.id && sender.tab?.id && contentScriptTokens.get(sender.tab.id) === message.token) {
           handleGetCredential(message.id, sendResponse);
           return true; // async response
@@ -288,7 +280,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Always return true because we handle EVERYTHING asynchronously after initStatePromise
 });
 
-// ── Badge indicator ──
 function updateBadge(unlocked) {
   if (unlocked) {
     chrome.action.setBadgeText({ text: '' });
@@ -301,13 +292,12 @@ function updateBadge(unlocked) {
 
 function updateTabBadge(tabId, hasLogin) {
   if (hasLogin && isUnlocked) {
-    // Show a subtle indicator that credentials are available for this tab
+
     chrome.action.setBadgeText({ text: '•', tabId });
     chrome.action.setBadgeBackgroundColor({ color: '#58a6ff', tabId });
   }
 }
 
-// ── Background Auto-Fill Logic ──
 function base64ToBuffer(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -347,7 +337,6 @@ async function handleAutoFillRequest(tab, message) {
 
     const entries = await bgDecrypt(localData.deadbolt_vault, localData.deadbolt_iv, key);
 
-    // Find matching entry for this domain
     const url = new URL(tab.url);
     const domain = url.hostname.replace(/^www\./, '');
 
@@ -363,7 +352,7 @@ async function handleAutoFillRequest(tab, message) {
     });
 
     if (matchingEntries.length === 1 && message.formType !== 'REGISTER' && message.formType !== 'PASSWORD_CHANGE') {
-      // Exactly 1 match -> autofill instantly (unless registering)
+
       const match = matchingEntries[0];
       chrome.tabs.sendMessage(tab.id, {
         action: 'autofill',
@@ -371,7 +360,7 @@ async function handleAutoFillRequest(tab, message) {
         password: match.password || ''
       });
     } else if (matchingEntries.length > 1 || message.formType === 'REGISTER' || message.formType === 'PASSWORD_CHANGE') {
-      // Multiple matches or registration -> show dropdown
+
       chrome.tabs.sendMessage(tab.id, {
         action: 'show-dropdown',
         credentials: matchingEntries.map(e => ({
@@ -381,7 +370,7 @@ async function handleAutoFillRequest(tab, message) {
         }))
       });
     } else {
-      // Highlight the badge to let user know they need to create/find an entry
+
       updateTabBadge(tab.id, true);
     }
   } catch (err) {
@@ -417,13 +406,11 @@ async function handleGetCredential(id, sendResponse) {
   }
 }
 
-// ── Clean up when tabs are closed ──
 chrome.tabs.onRemoved.addListener((tabId) => {
   detectedLoginTabs.delete(tabId);
   pendingSaves.delete(tabId);
 });
 
-// ── Clean up when tabs navigate away ──
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'complete' && pendingSaves.has(tabId)) {
     const cred = pendingSaves.get(tabId);
@@ -436,7 +423,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 });
 
-// ── Password Generator ──
 const CHARSETS = {
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
   lower: 'abcdefghijklmnopqrstuvwxyz',
@@ -452,7 +438,6 @@ function generatePassword(length, options) {
   if (options.symbols) charset += CHARSETS.symbols;
   if (!charset) charset = CHARSETS.lower;
 
-  // Rejection sampling to eliminate modulo bias
   const maxValid = 256 - (256 % charset.length);
   let password = '';
   while (password.length < length) {
@@ -467,7 +452,6 @@ function generatePassword(length, options) {
   return password;
 }
 
-// ── Vault Append Logic ──
 function bufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -499,7 +483,7 @@ async function handleSaveCredential(credential) {
     if (!sessionData.deadbolt_session_key) return;
 
     const keyBuffer = base64ToBuffer(sessionData.deadbolt_session_key);
-    // Need importKey for both decrypt and encrypt
+
     const key = await crypto.subtle.importKey(
       'raw', keyBuffer, { name: 'AES-GCM', length: 256 }, false, ['decrypt', 'encrypt']
     );
@@ -555,7 +539,6 @@ async function handleSaveCredential(credential) {
   }
 }
 
-// ── Vault Unlock Logic ──
 async function deriveKey(password, salt) {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -581,7 +564,6 @@ async function handleUnlockVault(masterPassword) {
     const verifyData = JSON.parse(data.deadbolt_verify);
     const decoder = new TextDecoder();
 
-    // Attempt decryption of verify phrase
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: base64ToBuffer(verifyData.iv) },
       key,
@@ -591,7 +573,6 @@ async function handleUnlockVault(masterPassword) {
     const phrase = JSON.parse(decoder.decode(decrypted));
     if (phrase !== 'DEADBOLT_VAULT_OK') return false;
 
-    // Successful unlock!
     const rawKey = await crypto.subtle.exportKey('raw', key);
     await chrome.storage.session.set({
       deadbolt_session_key: bufferToBase64(rawKey),
@@ -602,7 +583,6 @@ async function handleUnlockVault(masterPassword) {
     updateBadge(true);
     resetAutoLock();
 
-    // Process any pending saves that were queued while locked
     if (data.deadbolt_pending_vault_saves && data.deadbolt_pending_vault_saves.length > 0) {
       for (const cred of data.deadbolt_pending_vault_saves) {
         await handleSaveCredential(cred);
@@ -619,7 +599,6 @@ async function handleUnlockVault(masterPassword) {
 
 let forceHttpsEnabled = false;
 
-// ── Privacy Enhancements ──
 function updateWebRtcPolicy(block) {
   if (chrome.privacy && chrome.privacy.network && chrome.privacy.network.webRTCIPHandlingPolicy) {
     const policy = block ? 'disable_non_proxied_udp' : 'default';
@@ -662,7 +641,6 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   }
 });
 
-// ── Auto-Lock Logic ──
 let autoLockMinutes = 5;
 
 function resetAutoLock() {
@@ -682,7 +660,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// ── Initial state ──
 let initStatePromise = new Promise((resolve) => {
   chrome.storage.local.get(['deadbolt_settings'], (localRes) => {
     chrome.storage.session.get(['deadbolt_session_key'], (sessionRes) => {
@@ -694,7 +671,6 @@ let initStatePromise = new Promise((resolve) => {
         updateBadge(false);
       }
 
-      // Initialize settings
       if (localRes.deadbolt_settings) {
         try {
           const settings = JSON.parse(localRes.deadbolt_settings);
@@ -710,13 +686,12 @@ let initStatePromise = new Promise((resolve) => {
   });
 });
 
-// ── Handle install/update ──
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('onboarding/onboarding.html') });
   }
 });
-// ── Anti-Phishing Logic ──
+
 function levenshteinDistance(a, b) {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
@@ -779,7 +754,7 @@ async function checkPhishing(tab, currentHostname) {
       }
 
       const dist = levenshteinDistance(cleanHost, savedHost);
-      // Flag distance 1 or 2 as phishing for domains > 4 chars
+
       if (dist > 0 && dist <= 2 && savedHost.length > 4) {
         if (dist < minDistance) {
           minDistance = dist;

@@ -1,6 +1,4 @@
-/* ═══════════════════════════════════════════════════
-   DeadBolt — Onboarding (Dark Mode, Animated)
-   ═══════════════════════════════════════════════════ */
+
 
 :root {
   --bg-deep: #0a0a0f;
@@ -38,7 +36,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Progress Bar ── */
 .progress-track {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -54,7 +51,6 @@ body {
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Container ── */
 .container {
   background: var(--bg-primary);
   width: 100%;
@@ -66,11 +62,10 @@ body {
   overflow: hidden;
 }
 
-/* ── Carousel ── */
 .carousel {
   display: flex;
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  width: 900%; /* 9 steps */
+  width: 900%; 
 }
 
 .step {
@@ -89,7 +84,6 @@ body {
   padding: 48px 44px;
 }
 
-/* ── Logo / Hero ── */
 .logo-float {
   animation: floatBounce 3s ease-in-out infinite;
   margin-bottom: 28px;
@@ -103,7 +97,6 @@ body {
   filter: drop-shadow(0 4px 20px rgba(226, 232, 240, 0.1));
 }
 
-/* ── Tagline Block ── */
 .tagline-block { margin-bottom: 32px; }
 .tagline-label {
   font-size: 13px;
@@ -145,7 +138,6 @@ body {
   background-clip: text;
 }
 
-/* ── Icon Hero ── */
 .icon-hero {
   width: 80px; height: 80px;
   background: var(--accent-light);
@@ -188,7 +180,6 @@ body {
 .big-success svg { width: 44px; height: 44px; }
 .big-success .icon-ring { inset: -8px; border-radius: 36px; }
 
-/* ── Step Badge ── */
 .step-badge {
   display: inline-block;
   font-size: 11px;
@@ -204,7 +195,6 @@ body {
 .danger-badge { color: var(--danger); background: var(--danger-bg); }
 .success-badge { color: var(--success); background: var(--success-bg); }
 
-/* ── Typography ── */
 h1 {
   font-size: 26px;
   font-weight: 800;
@@ -235,7 +225,6 @@ p {
   text-decoration-style: wavy;
 }
 
-/* ── Feature Chips ── */
 .feature-chips {
   display: flex;
   flex-wrap: wrap;
@@ -262,7 +251,6 @@ p {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Form ── */
 form { width: 100%; text-align: left; }
 .input-group { margin-bottom: 18px; }
 .input-group label {
@@ -322,7 +310,6 @@ input[type="password"]:focus {
   text-align: center;
 }
 
-/* ── Buttons ── */
 button { font-family: inherit; cursor: pointer; }
 
 .btn-primary {
@@ -358,7 +345,6 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 8px 24px rgba(52, 211, 153, 0.25);
 }
 
-/* ── Pin Instruction ── */
 .pin-instruction {
   display: flex;
   align-items: flex-start;
@@ -378,7 +364,6 @@ button { font-family: inherit; cursor: pointer; }
 }
 .pin-text strong { color: var(--text-primary); }
 
-/* ── Step Dots ── */
 .step-dots {
   display: flex;
   gap: 8px;

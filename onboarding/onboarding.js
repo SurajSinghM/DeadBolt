@@ -8,11 +8,9 @@ function goToStep(step) {
   currentStep = step;
   document.getElementById('carousel').style.transform = `translateX(-${currentStep * (100 / totalSteps)}%)`;
   document.querySelectorAll('.step')[currentStep].classList.add('active');
-  
-  // Update progress bar
+
   document.getElementById('progress-fill').style.width = `${((currentStep + 1) / totalSteps) * 100}%`;
-  
-  // Update dots
+
   document.querySelectorAll('.dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === currentStep);
   });
@@ -22,7 +20,6 @@ function nextStep() {
   goToStep(currentStep + 1);
 }
 
-// Navigation buttons
 document.getElementById('btn-next-1').addEventListener('click', nextStep);
 document.getElementById('btn-next-2').addEventListener('click', nextStep);
 document.getElementById('btn-next-3').addEventListener('click', nextStep);
@@ -32,7 +29,6 @@ document.getElementById('btn-next-5').addEventListener('click', nextStep);
 document.getElementById('btn-next-5-aliases').addEventListener('click', nextStep);
 document.getElementById('btn-close').addEventListener('click', () => window.close());
 
-// Dot navigation (only allow going to previously visited steps)
 document.querySelectorAll('.dot').forEach(dot => {
   dot.addEventListener('click', () => {
     const target = parseInt(dot.dataset.step);
@@ -42,7 +38,6 @@ document.querySelectorAll('.dot').forEach(dot => {
   });
 });
 
-// Password strength logic
 function calcPasswordStrength(password) {
   if (!password) return { score: 0, label: '', level: '' };
   let score = 0;
@@ -86,8 +81,7 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
   }
   
   error.textContent = '';
-  
-  // ── Web Crypto API Utilities ──
+
   function getRandomBytes(length) { return crypto.getRandomValues(new Uint8Array(length)); }
   function bufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -112,7 +106,6 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
     return { ciphertext: bufferToBase64(encrypted), iv: bufferToBase64(iv) };
   }
 
-  // Create vault and setup session
   try {
     const btn = document.getElementById('btn-create-vault');
     btn.textContent = 'Creating vault...';
@@ -132,18 +125,15 @@ document.getElementById('form-setup').addEventListener('submit', async (e) => {
       deadbolt_verify: JSON.stringify(verifyData),
       deadbolt_settings: JSON.stringify({ autoLockMinutes: 5, simpleloginApiKey: apiKey })
     });
-    
-    // Save persistent session key
+
     const rawKey = await crypto.subtle.exportKey('raw', key);
     await chrome.storage.session.set({
       deadbolt_session_key: bufferToBase64(rawKey),
       deadbolt_session_salt: bufferToBase64(salt)
     });
-    
-    // Notify background script that vault is unlocked
+
     chrome.runtime.sendMessage({ action: 'vault-unlocked' });
-    
-    // Move to success step
+
     nextStep();
   } catch (err) {
     console.error(err);
