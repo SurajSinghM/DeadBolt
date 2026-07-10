@@ -960,119 +960,61 @@
   function renderUnlockPrompt(anchorField) {
     if (activeDropdownHost) activeDropdownHost.remove();
     
-    const host = document.createElement('deadbolt-unlock-prompt');
-    const shadow = host.attachShadow({ mode: 'closed' });
-
-    // Security: Aggressively stop propagation of typing events to prevent page from keylogging the master password
-    ['keydown', 'keypress', 'keyup', 'input', 'beforeinput', 'compositionstart', 'compositionupdate', 'compositionend'].forEach(evt => {
-      host.addEventListener(evt, (e) => {
-        e.stopPropagation();
-      }, true);
-    });
-
-    const style = document.createElement('style');
-    style.textContent = `
-      :host { position: absolute !important; z-index: 2147483647 !important; }
-      .container {
-        position: absolute; top: 12px; left: 0; width: 280px;
-        background: #111118; border: 1px solid #1e1e28; border-radius: 12px;
-        box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        padding: 16px; pointer-events: all;
-        opacity: 0; transform: translateY(6px); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      .container.visible { opacity: 1; transform: translateY(0); }
-      .title { font-size: 15px; font-weight: 600; color: #f1f5f9; display: flex; align-items: center; gap: 8px; }
-      .title svg { width: 16px; height: 16px; color: #94a3b8; }
-      .input-wrapper { display: flex; gap: 8px; margin-top: 14px; }
-      input {
-        flex: 1; padding: 10px 12px; border: 1.5px solid #2a2a35; border-radius: 8px;
-        background: #18181f; color: #f1f5f9;
-        font-size: 13px; outline: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); width: 100%;
-        box-sizing: border-box;
-      }
-      input::placeholder { color: #64748b; font-weight: 400; }
-      input:focus { background: #111118; border-color: #e2e8f0; box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.08); }
-      button {
-        background: #e2e8f0; color: #0a0a0f; border: none; padding: 0 16px;
-        border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; 
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      button:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3); }
-      button:active { transform: translateY(0); box-shadow: none; }
-      .error { color: #f87171; font-size: 12px; margin-top: 10px; display: none; font-weight: 500; }
+    const host = document.createElement('iframe');
+    host.src = chrome.runtime.getURL('unlock/unlock.html');
+    host.style.cssText = `
+      position: absolute !important;
+      z-index: 2147483647 !important;
+      border: none !important;
+      background: transparent !important;
+      width: 290px !important;
+      height: 130px !important;
+      border-radius: 12px !important;
+      box-shadow: none !important;
     `;
-
-    const container = document.createElement('div');
-    container.className = 'container';
-    container.innerHTML = `
-      <div class="title">
-        <svg xmlns="http://www.w3.org/0000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        Vault Locked
-      </div>
-      <form class="input-wrapper">
-        <input type="password" placeholder="Master Password" autocomplete="off" autofocus>
-        <button type="submit">Unlock</button>
-      </form>
-      <div class="error">Incorrect master password.</div>
-    `;
-
-    const form = container.querySelector('form');
-    const input = container.querySelector('input');
-    const error = container.querySelector('.error');
-    const btn = container.querySelector('button');
-
-    form.addEventListener('submit', (e) => {
-      if (!e.isTrusted) return;
-      e.preventDefault();
-      const pw = input.value;
-      if (!pw) return;
-
-      btn.textContent = '...';
-      btn.disabled = true;
-
-      chrome.runtime.sendMessage({ action: 'unlock-vault', password: pw }, (res) => {
-        if (res?.success) {
-          host.remove();
-          activeDropdownHost = null;
-          // Retry the original autofill request
-          if (lastClickedField) {
-            chrome.runtime.sendMessage({
-              action: 'request-autofill',
-              token: sessionActionToken,
-              url: window.location.origin,
-              hostname: window.location.hostname,
-              formType: lastClickedFormType
-            });
-          }
-        } else {
-          btn.textContent = 'Unlock';
-          btn.disabled = false;
-          error.style.display = 'block';
-          input.value = '';
-          input.focus();
-        }
-      });
-    });
-
-    shadow.appendChild(style);
-    shadow.appendChild(container);
 
     const parent = anchorField.parentElement;
     if (parent) {
       anchorField.insertAdjacentElement('afterend', host);
-      host.style.position = 'absolute';
       const anchorRect = anchorField.getBoundingClientRect();
-      container.style.top = (anchorField.offsetTop + anchorRect.height + 4) + 'px';
-      container.style.left = anchorField.offsetLeft + 'px';
-
-      requestAnimationFrame(() => {
-        container.classList.add('visible');
-        input.focus();
-      });
+      host.style.top = (anchorField.offsetTop + anchorRect.height + 4) + 'px';
       activeDropdownHost = host;
+      
+      // Attempt to transfer focus to the iframe so its internal autofocus works
+      requestAnimationFrame(() => {
+        host.focus();
+      });
     }
   }
+
+  // Handle messages from the extension iframe
+  window.addEventListener('message', (e) => {
+    // Verify origin matches the extension
+    if (e.origin !== chrome.runtime.getURL('').replace(/\/$/, '')) return;
+
+    if (e.data?.type === 'DEADBOLT_UNLOCKED') {
+      if (activeDropdownHost) {
+        activeDropdownHost.remove();
+        activeDropdownHost = null;
+      }
+      
+      // Retry the original autofill request
+      if (lastClickedField) {
+        chrome.runtime.sendMessage({
+          action: 'request-autofill',
+          token: sessionActionToken,
+          url: window.location.origin,
+          hostname: window.location.hostname,
+          formType: lastClickedFormType
+        });
+      }
+    } else if (e.data?.type === 'DEADBOLT_DISMISS_UNLOCK') {
+      if (activeDropdownHost) {
+        activeDropdownHost.remove();
+        activeDropdownHost = null;
+      }
+    }
+  });
 
   // ══════════════════════════════════
   //  AUTO-FILL ENGINE
