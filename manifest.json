@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DeadBolt — Password Manager",
-  "version": "1.0.0",
-  "description": "A premium, secure password manager for Chrome. Store, generate, and auto-fill credentials with military-grade AES-256-GCM encryption.",
+  "name": "DeadBolt Password Manager",
+  "version": "1.0.1",
+  "description": "A premium password manager for Chrome. Store, generate, and auto-fill credentials!",
   "permissions": [
     "storage",
     "activeTab",
@@ -33,16 +33,28 @@
   "content_scripts": [
     {
       "all_frames": true,
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content/blocker.js"],
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "js": [
+        "content/blocker.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
       "all_frames": true,
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content/content.js"],
-      "css": ["content/content.css"],
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
       "run_at": "document_start"
     }
   ],
@@ -54,8 +66,13 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["favicon logo/*", "unlock/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "favicon logo/*",
+        "unlock/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

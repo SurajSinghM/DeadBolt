@@ -92,8 +92,8 @@
 
   function isHiddenInput(el) {
     return el.type === 'hidden' ||
-           el.getAttribute('aria-hidden') === 'true' ||
-           !isVisible(el);
+      el.getAttribute('aria-hidden') === 'true' ||
+      !isVisible(el);
   }
 
   function getFieldFingerprint(field) {
@@ -189,7 +189,7 @@
     }
 
     if (newPasswords.length > 0 || passwordFields.length >= 2 ||
-        RE.REGISTER.test(pageText) || RE.REGISTER.test(formFingerprint)) {
+      RE.REGISTER.test(pageText) || RE.REGISTER.test(formFingerprint)) {
       return FormType.REGISTER;
     }
 
@@ -354,7 +354,7 @@
           injectedFields.add(field);
         }
       });
-      
+
       trackFieldInteractions(fields);
     });
   }
@@ -392,7 +392,7 @@
     pwEl.setAttribute('data-deadbolt-tracked', 'true');
 
     const state = { username: '', password: '', isSubmitted: false };
-    
+
     const updateState = () => {
       state.password = pwEl.value;
       if (userEl) state.username = userEl.value;
@@ -442,7 +442,7 @@
   function triggerSave(pwEl, state) {
     if (state.isSubmitted || !state.password) return;
     state.isSubmitted = true;
-    
+
     chrome.runtime.sendMessage({
       action: 'save-captured-credential',
       token: sessionActionToken,
@@ -453,7 +453,7 @@
         password: state.password
       }
     });
-    
+
     setTimeout(() => {
       chrome.runtime.sendMessage({ action: 'check-pending-saves', token: sessionActionToken }, (res) => {
         if (res?.credential) renderSavePrompt(res.credential);
@@ -691,7 +691,7 @@
             performAutofill(response.username, response.password);
           }
         });
-        
+
         host.remove();
         activeDropdownHost = null;
       });
@@ -711,13 +711,13 @@
         if (!e.isTrusted) return;
         e.preventDefault();
         e.stopPropagation();
-        
+
         chrome.runtime.sendMessage({ action: 'generate-password' }, (response) => {
           if (response && response.password) {
             performAutofill('', response.password);
           }
         });
-        
+
         host.remove();
         activeDropdownHost = null;
       });
@@ -732,7 +732,7 @@
       anchorField.insertAdjacentElement('afterend', host);
 
       host.style.position = 'absolute';
-      
+
       const anchorRect = anchorField.getBoundingClientRect();
 
       container.style.top = (anchorField.offsetTop + anchorRect.height + 4) + 'px';
@@ -817,10 +817,10 @@
       if (!e.isTrusted) return;
       chrome.runtime.sendMessage({ action: 'confirm-save-credential', token: sessionActionToken, credential }, (res) => {
         if (res?.success) {
-          container.innerHTML = `<div class="title" style="color: #10b981; text-align: center;">✅ Saved to Vault!</div>`;
+          container.innerHTML = `<div class="title" style="color: #10b981; text-align: center;"> Saved to Vault!</div>`;
           setTimeout(() => host.remove(), 1500);
         } else {
-          container.innerHTML = `<div class="title" style="color: #ef4444;">❌ Vault Locked.</div>`;
+          container.innerHTML = `<div class="title" style="color: #ef4444;"> Vault Locked.</div>`;
           setTimeout(() => host.remove(), 2000);
         }
       });
@@ -833,7 +833,7 @@
 
   function renderUnlockPrompt(anchorField) {
     if (activeDropdownHost) activeDropdownHost.remove();
-    
+
     const host = document.createElement('iframe');
     host.src = chrome.runtime.getURL('unlock/unlock.html');
     host.style.cssText = `
@@ -1160,7 +1160,7 @@
           }, (res) => {
             if (res && res.token) sessionActionToken = res.token;
           });
-        } catch {  }
+        } catch { }
       }
     }, SCAN_DEBOUNCE);
   }
@@ -1177,7 +1177,7 @@
         }, (res) => {
           if (res && res.token) sessionActionToken = res.token;
         });
-      } catch {  }
+      } catch { }
     }
   }
 
@@ -1203,7 +1203,7 @@
         scheduleScan();
       }
     });
-    
+
     urlObserver.observe(document, {
       childList: true,
       subtree: true,
