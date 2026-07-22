@@ -2,17 +2,14 @@
   "manifest_version": 3,
   "name": "DeadBolt Password Manager",
   "version": "1.0.1",
-  "description": "A premium password manager for Chrome. Store, generate, and auto-fill credentials!",
+  "description": "A secure password manager to store, generate, and auto-fill credentials.",
   "permissions": [
     "storage",
     "activeTab",
     "tabs",
-    "scripting",
     "alarms",
     "webNavigation",
-    "privacy",
-    "declarativeNetRequest",
-    "notifications"
+    "privacy"
   ],
   "host_permissions": [
     "<all_urls>",

@@ -271,8 +271,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'update-privacy':
         if (!isTrustedOrigin(sender)) return sendResponse({ error: 'Unauthorized' });
         updateWebRtcPolicy(message.blockWebRtc);
-        updateHttpsEnforcer(message.forceHttps);
-        forceHttpsEnabled = !!message.forceHttps;
         sendResponse({ success: true });
         break;
     }
@@ -597,49 +595,12 @@ async function handleUnlockVault(masterPassword) {
   }
 }
 
-let forceHttpsEnabled = true;
-
 function updateWebRtcPolicy(block) {
   if (chrome.privacy && chrome.privacy.network && chrome.privacy.network.webRTCIPHandlingPolicy) {
     const policy = block ? 'disable_non_proxied_udp' : 'default';
     chrome.privacy.network.webRTCIPHandlingPolicy.set({ value: policy });
   }
 }
-
-async function updateHttpsEnforcer(enforce) {
-  if (!chrome.declarativeNetRequest) return;
-  const ruleId = 1;
-  if (enforce) {
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      addRules: [{
-        "id": ruleId,
-        "priority": 1,
-        "action": { "type": "upgradeScheme" },
-        "condition": {
-          "urlFilter": "http://*",
-          "resourceTypes": ["main_frame", "sub_frame"]
-        }
-      }],
-      removeRuleIds: [ruleId]
-    });
-  } else {
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [ruleId]
-    });
-  }
-}
-
-chrome.webNavigation.onBeforeNavigate.addListener((details) => {
-  if (details.frameId === 0 && forceHttpsEnabled && details.url.startsWith('http://')) {
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: '/favicon logo/android-chrome-192x192.png',
-      title: 'DeadBolt Security',
-      message: 'HTTPS connection enforced',
-      priority: 1
-    });
-  }
-});
 
 let autoLockMinutes = 5;
 
@@ -671,7 +632,7 @@ let initStatePromise = new Promise((resolve) => {
         updateBadge(false);
       }
 
-      let settings = { autoLockMinutes: 5, forceHttps: true, blockWebRtc: true };
+      let settings = { autoLockMinutes: 5, blockWebRtc: true };
       if (localRes.deadbolt_settings) {
         try {
           settings = { ...settings, ...JSON.parse(localRes.deadbolt_settings) };
@@ -679,8 +640,6 @@ let initStatePromise = new Promise((resolve) => {
       }
       if (settings.autoLockMinutes) autoLockMinutes = settings.autoLockMinutes;
       updateWebRtcPolicy(settings.blockWebRtc);
-      updateHttpsEnforcer(settings.forceHttps);
-      forceHttpsEnabled = !!settings.forceHttps;
       
       resolve();
     });

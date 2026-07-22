@@ -21,7 +21,7 @@
     generatorCallback: null,
     filterFolder: '',
     filterTag: '',
-    settings: { autoLockMinutes: 5, forceHttps: true, blockWebRtc: true }
+    settings: { autoLockMinutes: 5, blockWebRtc: true }
   };
 
   function getRandomBytes(length) {
@@ -1010,7 +1010,6 @@
     $('#btn-settings').addEventListener('click', () => {
       $('#setting-autolock').value = state.settings.autoLockMinutes;
       $('#setting-autolock-val').textContent = state.settings.autoLockMinutes + ' min';
-      $('#setting-force-https').checked = !!state.settings.forceHttps;
       $('#setting-block-webrtc').checked = !!state.settings.blockWebRtc;
       $('#setting-simplelogin-api').value = state.settings.simpleloginApiKey || '';
       $('#setting-current-pass').value = '';
@@ -1026,12 +1025,6 @@
       state.settings.autoLockMinutes = val;
       await saveSettings();
       notifyBackground('update-autolock', { minutes: val });
-    });
-
-    $('#setting-force-https').addEventListener('change', async (e) => {
-      state.settings.forceHttps = e.target.checked;
-      await saveSettings();
-      notifyBackground('update-privacy', state.settings);
     });
 
     $('#setting-block-webrtc').addEventListener('change', async (e) => {
